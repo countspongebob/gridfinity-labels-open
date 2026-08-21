@@ -1,0 +1,31 @@
+Version 104 Changes Summary
+Milestone: Metric Version + Master Specification
+1. New file: metric_v104.scad
+Derived from imperial v103 shared core. Unit-layer changes only:
+Header: METRIC / ISO Metric Machine Screw Support
+thread_spec: M2, M2.5, M3, M4, M5, M6, M8, M10, M12, M14 (default M5)
+length_input_mm = 16 (direct mm input; length_mm = length_input_mm,
+no 25.4 conversion)
+generate_metric_display_text() replaces the imperial fraction table:
+str(thread, " x ", length) → "M5 x 16"
+Multi-label parser example table converted to metric specs
+label_content fallback text uses length_input_mm
+Verified: diff against imperial confirms shared core (all 19 icons, stems,
+base, batch mode, export modes) is byte-identical. Syntax balanced.
+2. New file: master_specification.md
+Single source of truth governing both code files. Contains:
+Critical context for AI assistants (carried forward + updated)
+Architecture: unit-agnostic shared core + thin unit layer
+Calibrated values table
+Complete icon geometry reference including head/stem junction rules
+(gap-fix lessons from v102-v103 codified)
+Unit-specific layer definition (the ONLY permitted differences)
+Synchronized versioning rules
+Changelog v100-v104
+3. imperial_v104.scad
+Functionally unchanged from v103. Header bump only, per synchronized
+versioning rule (both files always share the same version number).
+Versioning rules now in effect
+Both files always carry the same whole-integer version
+Shared-core changes are applied identically to both
+Unit-layer-only changes still bump both (header bump on unaffected file)
