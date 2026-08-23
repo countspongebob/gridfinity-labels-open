@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////
 //        Parts Bin Label Generator - IMPERIAL        //
 //         Fractional & Machine Screw Support         //
-//                    Version 110                     //
+//                    Version 111                     //
 ////////////////////////////////////////////////////////
 
 /* [Single Label Mode] */
@@ -305,11 +305,17 @@ module label_base() {
     // Side tabs (v99 baseline geometry, restored in v109) - clip into
     // Gridfinity Extended label slots; centered on each end
     if (enable_side_tabs) {
+        // Each tab overlaps 1mm INTO the body so the union is robust:
+        // a zero-overlap coincident face can land a floating-point
+        // epsilon short of the body edge and export as a disconnected
+        // shell (the left tab did exactly that in v109/v110 - it
+        // printed as a loose sliver). Outer extents are unchanged.
+        tab_overlap = 1;
         translate([-label_length/2 - tab_depth, -tab_width/2, 0]) {
-            cube([tab_depth, tab_width, label_thickness]);
+            cube([tab_depth + tab_overlap, tab_width, label_thickness]);
         }
-        translate([label_length/2, -tab_width/2, 0]) {
-            cube([tab_depth, tab_width, label_thickness]);
+        translate([label_length/2 - tab_overlap, -tab_width/2, 0]) {
+            cube([tab_depth + tab_overlap, tab_width, label_thickness]);
         }
     }
 }

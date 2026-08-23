@@ -1,5 +1,5 @@
 # Parts Bin Label Generator - Master Specification
-## Version 110
+## Version 111
 
 This is the single source of truth for the Parts Bin Label Generator.
 Two code files are generated from this specification:
@@ -109,6 +109,11 @@ Standard nut, Lock nut, Flange nut, Standard washer, Spring washer
   in the v104 regeneration (which left the "h_spacing accounts for side
   tabs" note orphaned), restored in v109. Tabs are part of the BASE
   (export_mode Base only includes them); content is unaffected.
+  IMPLEMENTATION RULE (v111): each tab cube overlaps 1mm INTO the body.
+  A zero-overlap coincident face can land a floating-point epsilon short
+  of the body edge and export as a DISCONNECTED shell - v109/v110's left
+  tab did exactly that and printed as a loose sliver. Never place a
+  union feature edge-to-edge; always overlap.
 - No mounting holes: the v104 regeneration added two 1.5mm holes at
   ±(label_length-2)/2; removed in v109 (the pre-v99 baseline had none,
   and Gridfinity Extended slots retain the label by its tabs).
@@ -337,6 +342,14 @@ Release procedure per version NNN:
 3. User clicks "Sync now" on the project's GitHub source
 
 ## 10. Changelog
+
+- **v111**: Left side tab detachment fix (both files). In v109/v110 the
+  left tab's inner face, computed as -label_length/2 - tab_depth plus
+  the cube width, landed a floating-point epsilon short of the body
+  edge; CGAL exported it as a disconnected shell and it printed as a
+  loose 1x6mm sliver (right tab, starting at exactly label_length/2,
+  merged fine). Both tabs now overlap 1mm into the body; outer
+  dimensions unchanged. Verified: base exports as one connected shell.
 
 - **v110**: Default colors changed to pure white base (#FFFFFF) and pure
   black content (#000000); previously #2C3E50 base / #FFFFFF content.

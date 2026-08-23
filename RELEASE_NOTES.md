@@ -5,6 +5,30 @@ Both `imperial.scad` and `metric.scad` always share the same version number.
 
 ---
 
+## v111 - Left side tab detachment fix
+
+The v109/v110 left tab printed as a loose sliver, not attached to the
+label. Confirmed in the exported mesh: the base exported as TWO
+disconnected shells. The left tab's inner face - computed as
+-label_length/2 - tab_depth plus the cube's tab_depth width - landed a
+floating-point epsilon short of the body edge, so CGAL kept it a
+separate solid; the right tab starts at exactly label_length/2 and
+merged correctly, which is why only the left side failed.
+
+### Fix (both files)
+
+Each tab cube now overlaps 1mm INTO the label body (inner edge at
+label_length/2 - 1 instead of label_length/2). Outer dimensions are
+unchanged: tabs still extend tab_depth (1.0mm) past each end at
+tab_width (6.0mm). A spec implementation rule was added: never place a
+union feature edge-to-edge; always overlap.
+
+### Verification
+
+- Base-only export now one connected shell in both files (was 2);
+  bbox unchanged at +/-(label_length/2 + 1.0).
+- Full label compiles clean; content unaffected.
+
 ## v110 - Default colors: white base, black content
 
 Changes the default colors in both files: base_color #2C3E50 -> #FFFFFF
