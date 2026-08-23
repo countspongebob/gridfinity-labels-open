@@ -1,5 +1,5 @@
 # Parts Bin Label Generator - Master Specification
-## Version 107
+## Version 108
 
 This is the single source of truth for the Parts Bin Label Generator.
 Two code files are generated from this specification:
@@ -101,6 +101,30 @@ Standard nut, Lock nut, Flange nut, Standard washer, Spring washer
   base and content export separately for Bambu Studio / MakerWorld)
 - base_color default #2C3E50, content_color default #FFFFFF
 - Typography: Roboto Bold default, text_size 4.0, Raised/Flush modes
+
+### 4.1 Text auto-fit (v108)
+
+Renderer font substitution (MakerWorld's customizer does not resolve
+"Roboto:style=Bold" and falls back to a wider font) changes both glyph
+widths and vertical metrics, which shipped labels with text overrunning
+the label edges. render_text() is therefore self-fitting:
+
+- Vertical: valign="baseline", baseline pinned at label_width/2 - 1.5mm
+  above the bottom edge (y = -label_width/2 + 1.5). Placement is
+  independent of any font's ascent/descent metrics. Do NOT return to
+  valign="center" - its position is font-dependent and regressed on
+  MakerWorld.
+- Horizontal: estimated width = text_size x sum of per-character
+  advances from _adv() - a table calibrated ~10% ABOVE DejaVu Sans Bold
+  (widest common fallback; OpenSCAD 2021.01 has no textmetrics()).
+  Safe width: label_length - 8 (keeps text clear of the mounting
+  holes). Hybrid fit: condense x down to 80% first, then shrink
+  proportionally if still over. Short strings are untouched; every fit
+  action is echoed as "TEXT-FIT: ...".
+- Verified worst cases on the Small label under a forced fallback
+  font: 'M10 x 35' (condensed 91%), '1/4-20 x 1-1/4"' (80% + size 72%),
+  'SPRING WASHER' (80% + size 63%) - all inside the hole-clearance
+  zone (measured via STL bounding box).
 
 ## 5. Icon Geometry Reference
 
@@ -301,6 +325,15 @@ Release procedure per version NNN:
 3. User clicks "Sync now" on the project's GitHub source
 
 ## 10. Changelog
+
+- **v108**: Text auto-fit (both files). MakerWorld's renderer substitutes
+  a wider font for "Roboto:style=Bold", producing text overrunning the
+  label edges (and long imperial strings overflowed the Small label even
+  under Roboto - latent since the baseline releases). render_text() now
+  pins the baseline 1.5mm above the bottom edge (valign="baseline",
+  font-metric independent) and width-fits via a calibrated advance table:
+  condense to 80%, then shrink (Section 4.1). Icons and label base
+  unchanged; text placement intentionally differs from v107.
 
 - **v107**: Flange hardware added (both files): "Flange hex bolt" (after
   Hex head bolt) and "Flange nut" (after Lock nut, nut/washer-class).

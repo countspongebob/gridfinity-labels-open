@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////
 //         Parts Bin Label Generator - METRIC         //
 //          ISO Metric Machine Screw Support          //
-//                    Version 107                     //
+//                    Version 108                     //
 ////////////////////////////////////////////////////////
 
 /* [Single Label Mode] */
@@ -296,17 +296,60 @@ module label_content(type, thread, display_text, length_mm) {
 }
 
 ////////////////////////////////////////////////////////
-//                TEXT RENDERING                     //
+//         TEXT RENDERING (auto-fit since v108)      //
 ////////////////////////////////////////////////////////
+// Renderer font substitution (e.g. MakerWorld) changes both glyph
+// widths and vertical metrics, so:
+// - Vertical: valign="baseline" with the baseline pinned 1.5mm above
+//   the label's bottom edge - placement no longer depends on any
+//   font's ascent/descent metrics.
+// - Horizontal: estimated width from a per-character advance table
+//   calibrated ~10% above DejaVu Sans Bold (the widest common
+//   fallback class; OpenSCAD 2021.01 has no textmetrics()). If the
+//   estimate exceeds the safe width (label_length - 8, clear of the
+//   mounting holes), the text is condensed in x down to 80%, then
+//   shrunk proportionally if still too wide. Short strings render
+//   exactly as before.
+
+// Per-character advance as a fraction of text_size (bold sans,
+// conservative). Unknown characters assume 1.10.
+function _adv(c) =
+    let(o = ord(c))
+    (o >= 48 && o <= 57) ? 0.95 :
+    c == " " ? 0.70 :
+    c == "." ? 0.55 :
+    c == "-" ? 0.60 :
+    c == "/" ? 0.55 :
+    c == "#" ? 1.15 :
+    c == "\"" ? 0.70 :
+    c == "(" || c == ")" ? 0.60 :
+    c == "I" || c == "i" || c == "l" || c == "j" || c == "!" ? 0.55 :
+    c == "M" || c == "m" ? 1.45 :
+    c == "W" || c == "w" ? 1.50 :
+    (o >= 65 && o <= 90) ? 1.10 :
+    (o >= 97 && o <= 122) ? 1.00 :
+    1.10;
+function _sumadv(s, i = 0) = i >= len(s) ? 0 : _adv(s[i]) + _sumadv(s, i + 1);
 
 module render_text(text_content) {
-    translate([0, -label_width/2 + 2, label_thickness]) {
+    est_w = _sumadv(text_content) * text_size;
+    avail = label_length - 8;
+    squeeze = (len(text_content) == 0 || est_w <= avail) ? 1 : avail / est_w;
+    x_condense = max(squeeze, 0.8);
+    size_factor = (squeeze >= 0.8) ? 1 : squeeze / 0.8;
+    if (squeeze < 1)
+        echo(str("TEXT-FIT: '", text_content, "' condensed to ",
+                 round(x_condense * 100), "%",
+                 size_factor < 1 ? str(", size scaled to ", round(size_factor * 100), "%") : ""));
+    translate([0, -label_width/2 + 1.5, label_thickness]) {
         linear_extrude(height = text_height) {
-            text(text_content, 
-                 size = text_size,
-                 font = font_string,
-                 halign = "center",
-                 valign = "center");
+            scale([x_condense, 1]) {
+                text(text_content, 
+                     size = text_size * size_factor,
+                     font = font_string,
+                     halign = "center",
+                     valign = "baseline");
+            }
         }
     }
 }

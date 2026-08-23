@@ -5,6 +5,38 @@ Both `imperial.scad` and `metric.scad` always share the same version number.
 
 ---
 
+## v108 - Text auto-fit (MakerWorld overflow fix)
+
+Fixes label text overrunning the label edges on MakerWorld. Two causes:
+
+1. MakerWorld's customizer does not resolve "Roboto:style=Bold" and
+   substitutes a wider font (~22%+ wider, different vertical metrics),
+   shifting text down and past the edges.
+2. Latent width bug independent of fonts: render_text() had no width
+   constraint, so long strings ('1/4-20 x 1-1/4"' = 36.7mm, 'SPRING
+   WASHER' = 42.5mm) overflowed the 35.8mm Small label even with Roboto.
+
+### Fix (render_text, shared core)
+
+- Vertical: valign="baseline" with the baseline pinned 1.5mm above the
+  label's bottom edge - placement no longer depends on any font's
+  ascent/descent metrics.
+- Horizontal hybrid fit: estimated width from a per-character advance
+  table calibrated ~10% above DejaVu Sans Bold (worst common fallback;
+  OpenSCAD 2021.01 has no textmetrics()). When the estimate exceeds
+  label_length - 8 (clear of mounting holes): condense x down to 80%,
+  then shrink proportionally if still over. Short strings unchanged.
+- Every fit action is echoed: TEXT-FIT: 'M10 x 35' condensed to 91%.
+
+### Verification
+
+Worst cases rendered on the Small label under a forced fallback font
+and measured via STL bounding box - all text inside the hole-clearance
+zone (max extent +/-12.9mm vs +/-14.4mm limit, baseline band well above
+the bottom edge): 'M10 x 35' 91% condensed; '1/4-20 x 1-1/4"' 80% +
+size 72%; 'SPRING WASHER' 80% + size 63%. Icons and label base
+byte-identical to v107; text position intentionally moved.
+
 ## v107 - Flange hex bolts and flange nuts
 
 Adds two hardware types to both files, motivated by metric flange-bolt
