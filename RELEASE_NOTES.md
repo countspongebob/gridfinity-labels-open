@@ -5,6 +5,36 @@ Both `imperial.scad` and `metric.scad` always share the same version number.
 
 ---
 
+## v109 - Side tabs restored, mounting holes removed
+
+Restores the end tabs that hold the label in Gridfinity Extended bins
+and removes the mounting holes. Both changes return label_base() to the
+pre-v99 baseline: that baseline had tabs and no holes; the v104
+regeneration silently swapped this (dropped the tabs, added two 1.5mm
+holes) while keeping the batch h_spacing (label_length + 4) that exists
+to make room for tabs - the orphaned spec note confirmed the regression.
+
+### Changes (both files)
+
+- label_base() grows two rectangular tabs, one centered on each end:
+  1.0mm deep x 6.0mm wide x full label_thickness - the exact v99
+  baseline geometry, taken from the archived imperial_v99.scad.
+- New customizer params under Label Properties: enable_side_tabs
+  (default TRUE), tab_depth (1.0), tab_width (6.0).
+- Mounting holes removed; hole_diameter parameter deleted. Gridfinity
+  Extended slots retain the label by its tabs.
+- Tabs are part of the base: "Base only" export includes them,
+  "Content only" is unaffected.
+
+### Verification
+
+- Tabs on: base bbox extends to +/-(label_length/2 + 1.0), tab spans
+  y = -3..+3 on both ends; zero vertices at the former hole positions
+  (all measured via STL).
+- Batch mode: h_spacing already accounts for tabs - adjacent labels
+  keep a 2.0mm gap between tab tips; no overlap.
+- Both files compile clean; multi-label mode unaffected.
+
 ## v108 - Text auto-fit (MakerWorld overflow fix)
 
 Fixes label text overrunning the label edges on MakerWorld. Two causes:

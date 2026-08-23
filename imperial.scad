@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////
 //        Parts Bin Label Generator - IMPERIAL        //
 //         Fractional & Machine Screw Support         //
-//                    Version 108                     //
+//                    Version 109                     //
 ////////////////////////////////////////////////////////
 
 /* [Single Label Mode] */
@@ -20,6 +20,9 @@ label_units = 1; // [1:Small (35.8mm), 2:Medium (77.8mm), 3:Large (119.8mm)]
 base_color = "#2C3E50"; // Base label color
 content_color = "#FFFFFF"; // Text and icon color
 export_mode = "Complete"; // [Complete, Base only, Content only]
+enable_side_tabs = true; // Side tabs that clip into Gridfinity Extended label slots
+tab_depth = 1.0; // How far each tab extends past the label end (mm)
+tab_width = 6.0; // Tab width (mm)
 
 /* [Typography] */
 font_family = "Roboto"; // [Arial, Roboto, Open Sans, Noto Sans, Liberation Sans]
@@ -34,7 +37,6 @@ corner_radius = 0.9;
 edge_chamfer = 0.2;
 raised_height = 0.2;
 flush_height = 0.01;
-hole_diameter = 1.5;
 
 // Internal calculations
 label_length = (label_units == 1) ? 35.8 : (label_units == 2) ? 77.8 : 119.8;
@@ -287,23 +289,27 @@ module create_single_label(type, thread, display_text, length_mm) {
 ////////////////////////////////////////////////////////
 
 module label_base() {
-    difference() {
-        // Main label body with rounded corners
-        hull() {
-            for (x = [-label_length/2 + corner_radius, label_length/2 - corner_radius]) {
-                for (y = [-label_width/2 + corner_radius, label_width/2 - corner_radius]) {
-                    translate([x, y, 0]) {
-                        cylinder(h = label_thickness, r = corner_radius);
-                    }
+    // Main label body with rounded corners (no mounting holes - the
+    // v104 regeneration added them; removed in v109 to match the
+    // pre-v99 baseline and Gridfinity Extended slot use)
+    hull() {
+        for (x = [-label_length/2 + corner_radius, label_length/2 - corner_radius]) {
+            for (y = [-label_width/2 + corner_radius, label_width/2 - corner_radius]) {
+                translate([x, y, 0]) {
+                    cylinder(h = label_thickness, r = corner_radius);
                 }
             }
         }
-        
-        // Mounting holes
-        for (x = [-(label_length-2)/2, (label_length-2)/2]) {
-            translate([x, 0, -0.1]) {
-                cylinder(h = label_thickness + 0.2, d = hole_diameter);
-            }
+    }
+
+    // Side tabs (v99 baseline geometry, restored in v109) - clip into
+    // Gridfinity Extended label slots; centered on each end
+    if (enable_side_tabs) {
+        translate([-label_length/2 - tab_depth, -tab_width/2, 0]) {
+            cube([tab_depth, tab_width, label_thickness]);
+        }
+        translate([label_length/2, -tab_width/2, 0]) {
+            cube([tab_depth, tab_width, label_thickness]);
         }
     }
 }
@@ -337,8 +343,8 @@ module label_content(type, thread, display_text, length_mm) {
 // - Horizontal: estimated width from a per-character advance table
 //   calibrated ~10% above DejaVu Sans Bold (the widest common
 //   fallback class; OpenSCAD 2021.01 has no textmetrics()). If the
-//   estimate exceeds the safe width (label_length - 8, clear of the
-//   mounting holes), the text is condensed in x down to 80%, then
+//   estimate exceeds the safe width (label_length - 8, clear of
+//   the label ends), the text is condensed in x down to 80%, then
 //   shrunk proportionally if still too wide. Short strings render
 //   exactly as before.
 

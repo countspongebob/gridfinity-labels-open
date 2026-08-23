@@ -1,5 +1,5 @@
 # Parts Bin Label Generator - Master Specification
-## Version 108
+## Version 109
 
 This is the single source of truth for the Parts Bin Label Generator.
 Two code files are generated from this specification:
@@ -73,12 +73,14 @@ between the two files except for the fallback text expression noted in 6.3.
 | edge_chamfer | 0.2 mm | |
 | raised_height | 0.2 mm | text_height when Raised |
 | flush_height | 0.01 mm | text_height when Flush |
-| hole_diameter | 1.5 mm | mounting holes at ±(label_length-2)/2 |
 | Small label | 35.8 mm | label_units = 1 |
 | Medium label | 77.8 mm | label_units = 2 |
 | Large label | 119.8 mm | label_units = 3 |
 | max_bolt_length | 20 × label_units | stems beyond this render split |
 | Batch h_spacing | label_length + 4 | accounts for side tabs |
+| tab_depth | 1.0 mm | side-tab extension past each end (v99 geometry, restored v109) |
+| tab_width | 6.0 mm | side-tab width, centered on each end |
+| enable_side_tabs | true | side tabs for Gridfinity Extended label slots; customizer toggle |
 | Batch v_spacing | 15 mm | |
 | Batch grid | 3 columns | |
 
@@ -100,6 +102,15 @@ Standard nut, Lock nut, Flange nut, Standard washer, Spring washer
 - export_mode: Complete / Base only / Content only (dual-color workflow:
   base and content export separately for Bambu Studio / MakerWorld)
 - base_color default #2C3E50, content_color default #FFFFFF
+- Side tabs (enable_side_tabs, default true): 1.0 x 6.0mm rectangular tabs
+  centered on each end of the base, full label_thickness - clip into
+  Gridfinity Extended label slots. Present in the pre-v99 baseline, lost
+  in the v104 regeneration (which left the "h_spacing accounts for side
+  tabs" note orphaned), restored in v109. Tabs are part of the BASE
+  (export_mode Base only includes them); content is unaffected.
+- No mounting holes: the v104 regeneration added two 1.5mm holes at
+  ±(label_length-2)/2; removed in v109 (the pre-v99 baseline had none,
+  and Gridfinity Extended slots retain the label by its tabs).
 - Typography: Roboto Bold default, text_size 4.0, Raised/Flush modes
 
 ### 4.1 Text auto-fit (v108)
@@ -117,13 +128,13 @@ the label edges. render_text() is therefore self-fitting:
 - Horizontal: estimated width = text_size x sum of per-character
   advances from _adv() - a table calibrated ~10% ABOVE DejaVu Sans Bold
   (widest common fallback; OpenSCAD 2021.01 has no textmetrics()).
-  Safe width: label_length - 8 (keeps text clear of the mounting
-  holes). Hybrid fit: condense x down to 80% first, then shrink
+  Safe width: label_length - 8 (keeps text clear of the label ends).
+  Hybrid fit: condense x down to 80% first, then shrink
   proportionally if still over. Short strings are untouched; every fit
   action is echoed as "TEXT-FIT: ...".
 - Verified worst cases on the Small label under a forced fallback
   font: 'M10 x 35' (condensed 91%), '1/4-20 x 1-1/4"' (80% + size 72%),
-  'SPRING WASHER' (80% + size 63%) - all inside the hole-clearance
+  'SPRING WASHER' (80% + size 63%) - all inside the end-clearance
   zone (measured via STL bounding box).
 
 ## 5. Icon Geometry Reference
@@ -325,6 +336,15 @@ Release procedure per version NNN:
 3. User clicks "Sync now" on the project's GitHub source
 
 ## 10. Changelog
+
+- **v109**: Side tabs restored, mounting holes removed (both files).
+  The pre-v99 baseline had 1.0 x 6.0mm end tabs (clip into Gridfinity
+  Extended label slots) and no holes; the v104 regeneration silently
+  dropped the tabs (keeping the batch h_spacing that accounts for them)
+  and added two 1.5mm mounting holes. Tabs restored with the v99
+  dimensions as enable_side_tabs (default true) + tab_depth/tab_width
+  customizer params; holes and the hole_diameter parameter deleted.
+  Batch spacing leaves 2.0mm between adjacent tab tips.
 
 - **v108**: Text auto-fit (both files). MakerWorld's renderer substitutes
   a wider font for "Roboto:style=Bold", producing text overrunning the
