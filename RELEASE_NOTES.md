@@ -5,6 +5,39 @@ Both `imperial.scad` and `metric.scad` always share the same version number.
 
 ---
 
+## v107 - Flange hex bolts and flange nuts
+
+Adds two hardware types to both files, motivated by metric flange-bolt
+assortment kits: "Flange hex bolt" (dropdown, after Hex head bolt) and
+"Flange nut" (after Lock nut; nut/washer-class, so its label text is the
+thread alone).
+
+### Icons
+
+- Flange hex bolt top view: the 5mm circle (round flange) with a hex
+  outline ring cut into it (3.6mm/2.8mm hex annulus, $fn=6) - hex head on
+  a round flange, distinct from Hex head bolt's solid hex.
+- Flange side views (bolt and nut): 2.5x4mm body plus a 1x5mm flange
+  plate on the stem side. The bolt stem starts at head_x+7, butting the
+  flange plate - plate half-height 2.5mm exceeds the 1.25mm stem
+  half-width, so the Section 5.3 junction rule holds (no notch, no gap).
+
+### Multi-label support
+
+New type keys: `flange` (or `flangebolt`) and `flangenut`, e.g.
+`flange: M6x16, M8x20; flangenut: M6, M8` - full names also accepted.
+
+### Verification
+
+- Ring cut confirmed via 2D projection contour test (3 contours: circle
+  + hex outer + hex inner); preview-mode PNGs z-fight on the coplanar
+  cuts exactly as they do on the existing nut/socket holes - render mode
+  and prints are unaffected.
+- Batch parse verified in both files (metric and imperial flange items,
+  full-name keys, mixed-number imperial lengths).
+- Default single-label output verified geometry-identical to v106 in
+  both files (facet-set comparison).
+
 ## v106 - Multi-label mode made real (structured spec parser)
 
 Replaces the fake multi-label "natural language prompt" with a working

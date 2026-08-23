@@ -1,11 +1,11 @@
 ////////////////////////////////////////////////////////
 //        Parts Bin Label Generator - IMPERIAL        //
 //         Fractional & Machine Screw Support         //
-//                    Version 106                     //
+//                    Version 107                     //
 ////////////////////////////////////////////////////////
 
 /* [Single Label Mode] */
-hardware_type = "Button head bolt"; // [Phillips head bolt, Socket head bolt, Hex head bolt, Button head bolt, Torx head bolt, Robertson pan head, Robertson flat head, Carriage bolt, Phillips head countersunk, Torx head countersunk, Socket head countersunk, Phillips wood screw, Torx wood screw, Wall anchor, Heat set insert, Standard nut, Lock nut, Standard washer, Spring washer, Custom text, None]
+hardware_type = "Button head bolt"; // [Phillips head bolt, Socket head bolt, Hex head bolt, Flange hex bolt, Button head bolt, Torx head bolt, Robertson pan head, Robertson flat head, Carriage bolt, Phillips head countersunk, Torx head countersunk, Socket head countersunk, Phillips wood screw, Torx wood screw, Wall anchor, Heat set insert, Standard nut, Lock nut, Flange nut, Standard washer, Spring washer, Custom text, None]
 thread_spec = "1/4-20"; // [1/4-20, 5/16-18, 3/8-16, 7/16-14, 1/2-13, 9/16-12, 5/8-11, 3/4-10, 7/8-9, 1-8, #4-40, #5-40, #6-32, #8-32, #10-24, #12-24]
 length_inches = 0.75; // Length in inches
 custom_display_text = ""; // Custom text override (leave blank for auto-generation)
@@ -74,6 +74,7 @@ function generate_imperial_display_text(thread, length_inches) =
 function is_nut_or_washer_type(type) =
     type == "Standard nut" || 
     type == "Lock nut" || 
+    type == "Flange nut" || 
     type == "Standard washer" || 
     type == "Spring washer";
 
@@ -89,9 +90,10 @@ function is_nut_or_washer_type(type) =
 //   nuts/washers:  <thread>                   e.g.  1/4-20, #8-32
 //   custom text:   literal label text         e.g.  text: Front, Back
 // Type keys (case-insensitive; full customizer type names also work):
-//   phillips, socket, hex, button, torx, robertson, rpan, rflat,
-//   carriage, phillips-csk, torx-csk, socket-csk, phillips-wood,
-//   torx-wood, anchor, insert, nut, locknut, washer, springwasher, text
+//   phillips, socket, hex, flange, button, torx, robertson, rpan,
+//   rflat, carriage, phillips-csk, torx-csk, socket-csk, phillips-wood,
+//   torx-wood, anchor, insert, nut, locknut, flangenut, washer,
+//   springwasher, text
 // Unknown types and malformed items are skipped with a console
 // warning; every parsed label is echoed to the console for review.
 // Custom text items cannot contain "," or ";" characters.
@@ -126,6 +128,8 @@ _TYPE_KEYS = [
     ["phillips", "Phillips head bolt"],
     ["socket", "Socket head bolt"],
     ["hex", "Hex head bolt"],
+    ["flange", "Flange hex bolt"],
+    ["flangebolt", "Flange hex bolt"],
     ["button", "Button head bolt"],
     ["torx", "Torx head bolt"],
     ["robertson", "Robertson pan head"],
@@ -141,6 +145,7 @@ _TYPE_KEYS = [
     ["insert", "Heat set insert"],
     ["nut", "Standard nut"],
     ["locknut", "Lock nut"],
+    ["flangenut", "Flange nut"],
     ["washer", "Standard washer"],
     ["springwasher", "Spring washer"],
     ["text", "Custom text"]
@@ -350,6 +355,8 @@ module render_hardware_icon(type, length_mm) {
         socket_bolt_icon(length_mm, icon_y_pos);
     } else if (type == "Hex head bolt") {
         hex_bolt_icon(length_mm, icon_y_pos);
+    } else if (type == "Flange hex bolt") {
+        flange_hex_bolt_icon(length_mm, icon_y_pos);
     } else if (type == "Button head bolt") {
         button_bolt_icon(length_mm, icon_y_pos);
     } else if (type == "Torx head bolt") {
@@ -378,6 +385,8 @@ module render_hardware_icon(type, length_mm) {
         standard_nut_icon(icon_y_pos);
     } else if (type == "Lock nut") {
         lock_nut_icon(icon_y_pos);
+    } else if (type == "Flange nut") {
+        flange_nut_icon(icon_y_pos);
     } else if (type == "Standard washer") {
         standard_washer_icon(icon_y_pos);
     } else if (type == "Spring washer") {
@@ -627,6 +636,37 @@ module hex_bolt_icon(length_mm, y_pos) {
 }
 
 ////////////////////////////////////////////////////////
+//             FLANGE HEX BOLT ICON                   //
+////////////////////////////////////////////////////////
+
+module flange_hex_bolt_icon(length_mm, y_pos) {
+    head_x = -min(length_mm, max_bolt_length)/2 - 3;
+    z_pos = label_thickness;
+
+    // Top view - round flange with a hex outline ring cut into it
+    translate([head_x, y_pos, z_pos]) {
+        difference() {
+            cylinder(h = text_height, d = 5);
+            difference() {
+                cylinder(h = text_height, d = 3.6, $fn = 6);
+                cylinder(h = text_height, d = 2.8, $fn = 6);
+            }
+        }
+    }
+
+    // Side view - hex body over a wider flange plate at the stem side
+    translate([head_x + 3.5, y_pos - 2, z_pos]) {
+        cube([2.5, 4, text_height]);
+    }
+    translate([head_x + 6, y_pos - 2.5, z_pos]) {
+        cube([1, 5, text_height]);
+    }
+
+    // Stem butts the flange plate (half-height 2.5mm > 1.25mm: no notch)
+    bolt_stem(length_mm, head_x + 7, y_pos);
+}
+
+////////////////////////////////////////////////////////
 //               BUTTON HEAD ICON                    //
 ////////////////////////////////////////////////////////
 
@@ -813,6 +853,26 @@ module lock_nut_icon(y_pos) {
     }
     translate([center_x + 2, y_pos - 2, z_pos]) {
         cube([4, 4, text_height]);
+    }
+}
+
+module flange_nut_icon(y_pos) {
+    z_pos = label_thickness;
+    center_x = 0;
+
+    translate([center_x - 2, y_pos, z_pos]) {
+        difference() {
+            cylinder(h = text_height, d = 5, $fn = 6);
+            cylinder(h = text_height, d = 3);
+        }
+    }
+
+    // Side view - nut body over a wider flange plate
+    translate([center_x + 2, y_pos - 2, z_pos]) {
+        cube([2.5, 4, text_height]);
+    }
+    translate([center_x + 4.5, y_pos - 2.5, z_pos]) {
+        cube([1, 5, text_height]);
     }
 }
 

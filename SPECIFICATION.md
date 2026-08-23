@@ -1,5 +1,5 @@
 # Parts Bin Label Generator - Master Specification
-## Version 106
+## Version 107
 
 This is the single source of truth for the Parts Bin Label Generator.
 Two code files are generated from this specification:
@@ -55,7 +55,7 @@ The engine is unit-agnostic: all icons, stems, and layout calculations run on
 [Unit-specific layer]           [Shared core - identical in both files]
 thread_spec dropdown       -->  create_single_label()
 length input + conversion  -->  label_base(), label_content()
-display text generation    -->  render_hardware_icon() + 19 icon modules
+display text generation    -->  render_hardware_icon() + 21 icon modules
 multi-label item parsing   -->  bolt_stem(), render_text()
                                 multi-label grammar + string helpers
 ```
@@ -82,14 +82,18 @@ between the two files except for the fallback text expression noted in 6.3.
 | Batch v_spacing | 15 mm | |
 | Batch grid | 3 columns | |
 
-## 3. Hardware Types (19 + Custom text + None)
+## 3. Hardware Types (21 + Custom text + None)
 
 Dropdown order (identical in both files):
-Phillips head bolt, Socket head bolt, Hex head bolt, Button head bolt,
-Torx head bolt, Robertson pan head, Robertson flat head, Carriage bolt,
-Phillips head countersunk, Torx head countersunk, Socket head countersunk,
-Phillips wood screw, Torx wood screw, Wall anchor, Heat set insert,
-Standard nut, Lock nut, Standard washer, Spring washer, Custom text, None
+Phillips head bolt, Socket head bolt, Hex head bolt, Flange hex bolt,
+Button head bolt, Torx head bolt, Robertson pan head, Robertson flat head,
+Carriage bolt, Phillips head countersunk, Torx head countersunk,
+Socket head countersunk, Phillips wood screw, Torx wood screw, Wall anchor,
+Heat set insert, Standard nut, Lock nut, Flange nut, Standard washer,
+Spring washer, Custom text, None
+
+Nut/washer-class types (icon only + thread text, no length):
+Standard nut, Lock nut, Flange nut, Standard washer, Spring washer
 
 ## 4. Export & Color (both files)
 
@@ -115,6 +119,8 @@ Standard nut, Lock nut, Standard washer, Spring washer, Custom text, None
 - Torx: 6-spoke star (torx_star, 2.5 size, 0.3 spoke dia)
 - Robertson: centered 2.2mm square
 - Carriage: NO cut - solid circle (no tool relief)
+- Flange hex bolt: hex outline ring (3.6mm/2.8mm hex annulus, $fn=6) cut
+  from the 5mm circle - reads as a hex head sitting on a round flange
 
 ### 5.3 Head/stem junction rules (gap fix v102-v103; orientation v105)
 A stem must never start at an x-position where the head profile's half-height
@@ -136,6 +142,10 @@ is less than the stem half-width (1.25mm), or a visible notch appears.
 - Rectangular side views (Socket, Torx: 4mm cube; Hex: 3mm cube): stem
   overlaps the rectangle; head_x+6 (socket/torx) and head_x+5.5 (hex) are
   correct as-is.
+- Flange side views (Flange hex bolt, Flange nut): 2.5x4mm body then a
+  1x5mm flange plate on the stem side (bolt: body at head_x+3.5, plate at
+  head_x+6, stem at head_x+7 butting the plate - plate half-height 2.5mm >
+  1.25mm, no notch; nut: body at center_x+2, plate at center_x+4.5).
 - Countersunk triangle ([0,-2.5],[3,0],[0,2.5] at head_x+4): stem at
   head_x + 5 overlaps the triangle. Correct as-is.
 - Button head note: scale([1,1,0.6]) affects Z only; XY footprint is a
@@ -147,6 +157,7 @@ is less than the stem half-width (1.25mm), or a visible notch appears.
 - Heat set insert: ring (4mm OD / 2.5mm ID) + 4 knurl bars
 - Standard nut: hex ring + 3mm side rectangle
 - Lock nut: standard nut + stepped second rectangle (nylon collar)
+- Flange nut: hex ring top view + 2.5x4 body / 1x5 flange plate side view
 - Standard washer: round ring + 1mm side bar
 - Spring washer: split ring (0.8mm slot) + 1mm side bar
 
@@ -210,9 +221,10 @@ group := typekey ":" item { "," item }
 ```
 
 Type keys (case-insensitive; full dropdown names from Section 3 also
-accepted): phillips, socket, hex, button, torx, robertson (or rpan),
-rflat, carriage, phillips-csk, torx-csk, socket-csk, phillips-wood,
-torx-wood, anchor, insert, nut, locknut, washer, springwasher, text
+accepted): phillips, socket, hex, flange (or flangebolt), button, torx,
+robertson (or rpan), rflat, carriage, phillips-csk, torx-csk, socket-csk,
+phillips-wood, torx-wood, anchor, insert, nut, locknut, flangenut, washer,
+springwasher, text
 
 Items:
 - Bolt/screw types: `<thread>x<length>` (spaces allowed around "x").
@@ -289,6 +301,14 @@ Release procedure per version NNN:
 3. User clicks "Sync now" on the project's GitHub source
 
 ## 10. Changelog
+
+- **v107**: Flange hardware added (both files): "Flange hex bolt" (after
+  Hex head bolt) and "Flange nut" (after Lock nut, nut/washer-class).
+  Top views: flange bolt = 5mm circle with hex outline ring cut (5.2);
+  flange nut = standard hex ring. Side views: 2.5x4 body + 1x5 flange
+  plate; bolt stem at head_x+7 butting the plate per the 5.3 junction rule.
+  Multi-label keys: flange / flangebolt, flangenut. Existing types
+  verified geometry-identical to v106.
 
 - **v106**: Multi-label mode made real (both files). v99-v105's "natural
   language prompt" was a stub: `parse_multi_label_prompt()` ignored its
