@@ -5,6 +5,16 @@ Both `imperial.scad` and `metric.scad` always share the same version number.
 
 ---
 
+## v110 - Default colors: white base, black content
+
+Changes the default colors in both files: base_color #2C3E50 -> #FFFFFF
+(pure white), content_color #FFFFFF -> #000000 (pure black). No gray
+tones anywhere. Both remain customizer parameters, so any other
+combination can still be set per-print.
+
+No geometry change - color() affects preview/3MF part coloring only;
+exported STL geometry is identical to v109.
+
 ## v109 - Side tabs restored, mounting holes removed
 
 Restores the end tabs that hold the label in Gridfinity Extended bins

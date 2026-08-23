@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////
 //         Parts Bin Label Generator - METRIC         //
 //          ISO Metric Machine Screw Support          //
-//                    Version 109                     //
+//                    Version 110                     //
 ////////////////////////////////////////////////////////
 
 /* [Single Label Mode] */
@@ -17,8 +17,8 @@ multi_label_spec = "socket: M5x8, M5x12, M5x16, M3x8, M3x12; nut: M5, M3, M4; wa
 
 /* [Label Properties] */
 label_units = 1; // [1:Small (35.8mm), 2:Medium (77.8mm), 3:Large (119.8mm)]
-base_color = "#2C3E50"; // Base label color
-content_color = "#FFFFFF"; // Text and icon color
+base_color = "#FFFFFF"; // Base label color
+content_color = "#000000"; // Text and icon color
 export_mode = "Complete"; // [Complete, Base only, Content only]
 enable_side_tabs = true; // Side tabs that clip into Gridfinity Extended label slots
 tab_depth = 1.0; // How far each tab extends past the label end (mm)

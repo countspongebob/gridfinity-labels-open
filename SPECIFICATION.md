@@ -1,5 +1,5 @@
 # Parts Bin Label Generator - Master Specification
-## Version 109
+## Version 110
 
 This is the single source of truth for the Parts Bin Label Generator.
 Two code files are generated from this specification:
@@ -101,7 +101,8 @@ Standard nut, Lock nut, Flange nut, Standard washer, Spring washer
 
 - export_mode: Complete / Base only / Content only (dual-color workflow:
   base and content export separately for Bambu Studio / MakerWorld)
-- base_color default #2C3E50, content_color default #FFFFFF
+- base_color default #FFFFFF (white), content_color default #000000
+  (black) - pure black-on-white since v110 (previously #2C3E50/#FFFFFF)
 - Side tabs (enable_side_tabs, default true): 1.0 x 6.0mm rectangular tabs
   centered on each end of the base, full label_thickness - clip into
   Gridfinity Extended label slots. Present in the pre-v99 baseline, lost
@@ -336,6 +337,10 @@ Release procedure per version NNN:
 3. User clicks "Sync now" on the project's GitHub source
 
 ## 10. Changelog
+
+- **v110**: Default colors changed to pure white base (#FFFFFF) and pure
+  black content (#000000); previously #2C3E50 base / #FFFFFF content.
+  Customizer-only default change, no geometry difference.
 
 - **v109**: Side tabs restored, mounting holes removed (both files).
   The pre-v99 baseline had 1.0 x 6.0mm end tabs (clip into Gridfinity
