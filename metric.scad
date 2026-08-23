@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////
 //         Parts Bin Label Generator - METRIC         //
 //          ISO Metric Machine Screw Support          //
-//                    Version 105                     //
+//                    Version 106                     //
 ////////////////////////////////////////////////////////
 
 /* [Single Label Mode] */
@@ -13,7 +13,7 @@ custom_text_only = "Custom"; // Used only when hardware_type is "Custom text"
 
 /* [Multi-Label Mode] */
 enable_multi_label = false;
-multi_label_prompt = "Create socket head bolt labels: M5 x 8, 12, 16 mm and M3 x 8, 12 mm. Generate nuts: M5, M3, M4. Make washers for same sizes."; // Natural language description
+multi_label_spec = "socket: M5x8, M5x12, M5x16, M3x8, M3x12; nut: M5, M3, M4; washer: M5, M3, M4"; // Batch spec: "type: item, item; type: item" - grammar in MULTI-LABEL SPEC PARSER section
 
 /* [Label Properties] */
 label_units = 1; // [1:Small (35.8mm), 2:Medium (77.8mm), 3:Large (119.8mm)]
@@ -58,24 +58,123 @@ function is_nut_or_washer_type(type) =
     type == "Spring washer";
 
 ////////////////////////////////////////////////////////
-//     METRIC MULTI-LABEL PARSER                     //
+//     METRIC MULTI-LABEL SPEC PARSER (v106)        //
 ////////////////////////////////////////////////////////
+// Structured batch grammar for multi_label_spec (paste-able, no
+// code editing). Groups separated by ";", each group:
+//     <type>: <item>, <item>, ...
+// Items:
+//   bolts/screws:  <thread>x<length-mm>       e.g.  M5x8, M4x12.5
+//   nuts/washers:  <thread>                   e.g.  M5
+//   custom text:   literal label text         e.g.  text: Front, Back
+// Type keys (case-insensitive; full customizer type names also work):
+//   phillips, socket, hex, button, torx, robertson, rpan, rflat,
+//   carriage, phillips-csk, torx-csk, socket-csk, phillips-wood,
+//   torx-wood, anchor, insert, nut, locknut, washer, springwasher, text
+// Unknown types and malformed items are skipped with a console
+// warning; every parsed label is echoed to the console for review.
+// Custom text items cannot contain "," or ";" characters.
 
-function parse_multi_label_prompt(prompt) =
-    // Enhanced parser for metric specifications
-    [
-        ["Socket head bolt", "M5", "M5 x 8", 8],
-        ["Socket head bolt", "M5", "M5 x 12", 12],
-        ["Socket head bolt", "M5", "M5 x 16", 16],
-        ["Socket head bolt", "M3", "M3 x 8", 8],
-        ["Socket head bolt", "M3", "M3 x 12", 12],
-        ["Standard nut", "M5", "", 0],
-        ["Standard nut", "M3", "", 0],
-        ["Standard nut", "M4", "", 0],
-        ["Standard washer", "M5", "", 0],
-        ["Standard washer", "M3", "", 0],
-        ["Standard washer", "M4", "", 0]
-    ];
+// --- generic string helpers (OpenSCAD has no regex: built by hand) ---
+function _substr(s, b, e) =
+    (e <= b) ? "" : chr([for (i = [b : 1 : e - 1]) ord(s[i])]);
+function _lc(s) =
+    len(s) == 0 ? "" :
+    chr([for (i = [0 : 1 : len(s) - 1])
+        let(o = ord(s[i])) (o >= 65 && o <= 90) ? o + 32 : o]);
+function _split(s, sep) =
+    let(m = len(s) == 0 ? [] : search(sep, s, 0),
+        pos = len(m) == 0 ? [] : m[0],
+        bounds = concat([-1], pos, [len(s)]))
+    [for (j = [0 : 1 : len(bounds) - 2]) _substr(s, bounds[j] + 1, bounds[j + 1])];
+function _idx(s, c) = let(m = search(c, s)) len(m) == 0 ? -1 : m[0];
+function _fns(s, i) = i >= len(s) ? len(s) : (s[i] == " " || s[i] == "\t") ? _fns(s, i + 1) : i;
+function _lns(s, i) = i < 0 ? -1 : (s[i] == " " || s[i] == "\t") ? _lns(s, i - 1) : i;
+function _trim(s) = let(b = _fns(s, 0), e = _lns(s, len(s) - 1)) b > e ? "" : _substr(s, b, e + 1);
+function _num(s, i = 0, acc = 0, dec = false, scale = 0.1, any = false) =
+    len(s) == 0 ? undef :
+    i >= len(s) ? (any ? acc : undef) :
+    s[i] == "." ? (dec ? undef : _num(s, i + 1, acc, true, 0.1, any)) :
+    let(d = ord(s[i]) - 48)
+    (d < 0 || d > 9) ? undef :
+    dec ? _num(s, i + 1, acc + d * scale, true, scale / 10, true) :
+    _num(s, i + 1, acc * 10 + d, false, 0.1, true);
+
+// --- type keyword table (aliases -> customizer type names) ---
+_TYPE_KEYS = [
+    ["phillips", "Phillips head bolt"],
+    ["socket", "Socket head bolt"],
+    ["hex", "Hex head bolt"],
+    ["button", "Button head bolt"],
+    ["torx", "Torx head bolt"],
+    ["robertson", "Robertson pan head"],
+    ["rpan", "Robertson pan head"],
+    ["rflat", "Robertson flat head"],
+    ["carriage", "Carriage bolt"],
+    ["phillips-csk", "Phillips head countersunk"],
+    ["torx-csk", "Torx head countersunk"],
+    ["socket-csk", "Socket head countersunk"],
+    ["phillips-wood", "Phillips wood screw"],
+    ["torx-wood", "Torx wood screw"],
+    ["anchor", "Wall anchor"],
+    ["insert", "Heat set insert"],
+    ["nut", "Standard nut"],
+    ["locknut", "Lock nut"],
+    ["washer", "Standard washer"],
+    ["springwasher", "Spring washer"],
+    ["text", "Custom text"]
+];
+function _type_name(k) =
+    let(hits = [for (t = _TYPE_KEYS) if (t[0] == k || _lc(t[1]) == k) t[1]])
+    len(hits) > 0 ? hits[0] : undef;
+
+// --- metric unit layer: thread + length parsing ---
+// Thread: "M" + number (M2 ... M14); "m5" is normalized to "M5"
+function _norm_thread(raw) =
+    let(t = _trim(raw))
+    len(t) < 2 ? undef :
+    (t[0] == "m" || t[0] == "M") && _num(_substr(t, 1, len(t))) != undef ?
+        str("M", _substr(t, 1, len(t))) : undef;
+// Length: millimeters, whole or decimal ("8", "12.5") -> mm value
+function _parse_len_mm(s) = _num(s);
+function _display_text_for(th, lstr) = str(th, " x ", lstr);
+
+// --- shared grammar layer ---
+// Item -> [type, thread, display_text, length_mm], or undef if malformed
+function _parse_item(tname, raw) =
+    tname == "Custom text" ? [tname, "", raw, 0] :
+    let(x = _idx(_lc(raw), "x"))
+    (is_nut_or_washer_type(tname) || x < 0) ?
+        let(th = _norm_thread(raw))
+        (th == undef ?
+            (echo(str("MULTI-LABEL: skipped unparseable item '", raw, "'")) undef) :
+            [tname, th, is_nut_or_washer_type(tname) ? "" : th, 0]) :
+    let(th = _norm_thread(_substr(raw, 0, x)),
+        lstr = _trim(_substr(raw, x + 1, len(raw))),
+        lmm = _parse_len_mm(lstr))
+    (th == undef || lmm == undef || lmm <= 0) ?
+        (echo(str("MULTI-LABEL: skipped unparseable item '", raw, "'")) undef) :
+    [tname, th, _display_text_for(th, lstr), lmm];
+
+function _parse_group(g) =
+    let(ci = _idx(g, ":"))
+    ci < 0 ?
+        (echo(str("MULTI-LABEL: skipped group without ':' -> '", g, "'")) []) :
+    let(key = _lc(_trim(_substr(g, 0, ci))),
+        tname = _type_name(key))
+    tname == undef ?
+        (echo(str("MULTI-LABEL: skipped group, unknown type '", key, "'")) []) :
+    [for (item = _split(_substr(g, ci + 1, len(g)), ","))
+        let(it = _trim(item))
+        if (it != "")
+        let(spec = _parse_item(tname, it))
+        if (spec != undef) spec];
+
+function parse_multi_label_spec(s) =
+    [for (g = _split(s, ";"))
+        let(gt = _trim(g))
+        if (gt != "")
+        each _parse_group(gt)];
 
 ////////////////////////////////////////////////////////
 //                 MAIN EXECUTION                    //
@@ -86,7 +185,7 @@ if (enable_multi_label) {
 } else {
     // Generate display text if not provided
     final_display_text = (custom_display_text != "") ? custom_display_text :
-        is_nut_or_washer_type(hardware_type) ? "" :
+        (is_nut_or_washer_type(hardware_type) || hardware_type == "Custom text") ? "" :
         generate_metric_display_text(thread_spec, length_input_mm);
     
     create_single_label(
@@ -102,13 +201,16 @@ if (enable_multi_label) {
 ////////////////////////////////////////////////////////
 
 module generate_multi_labels() {
-    parsed_specs = parse_multi_label_prompt(multi_label_prompt);
+    parsed_specs = parse_multi_label_spec(multi_label_spec);
+    echo(str("MULTI-LABEL: ", len(parsed_specs), " labels parsed from spec"));
+    for (s = parsed_specs)
+        echo(str("MULTI-LABEL:   [", s[0], "] ", s[2] != "" ? s[2] : s[1]));
     
     grid_columns = 3;
     h_spacing = label_length + 4;
     v_spacing = 15;
     
-    for (i = [0 : len(parsed_specs) - 1]) {
+    for (i = [0 : 1 : len(parsed_specs) - 1]) {
         spec = parsed_specs[i];
         row = floor(i / grid_columns);
         col = i % grid_columns;
@@ -176,7 +278,7 @@ module label_base() {
 
 module label_content(type, thread, display_text, length_mm) {
     if (type == "Custom text") {
-        render_text(custom_text_only);
+        render_text((display_text != "") ? display_text : custom_text_only);
     } else if (is_nut_or_washer_type(type)) {
         render_hardware_icon(type, length_mm);
         render_text(thread);

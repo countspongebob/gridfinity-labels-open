@@ -5,6 +5,63 @@ Both `imperial.scad` and `metric.scad` always share the same version number.
 
 ---
 
+## v106 - Multi-label mode made real (structured spec parser)
+
+Replaces the fake multi-label "natural language prompt" with a working
+structured parser in both files. v99-v105's `parse_multi_label_prompt()`
+ignored its input entirely and returned a hardcoded example table - the
+prompt field was decorative, and changing it changed nothing. OpenSCAD
+cannot parse natural language; it can parse a structured string, and now
+does.
+
+### New grammar (paste into `multi_label_spec`, no code editing)
+
+Groups separated by `;`, each group `type: item, item, ...`:
+
+- Imperial: `socket: 1/4-20x1/2, 1/4-20x3/4, #8-32x1/2; nut: 1/4-20, #8-32; text: MISC`
+- Metric: `button: M5x8, M4x12.5; washer: M5, M3; insert: M5`
+
+Type keys (case-insensitive; full dropdown names also accepted):
+phillips, socket, hex, button, torx, robertson (rpan), rflat, carriage,
+phillips-csk, torx-csk, socket-csk, phillips-wood, torx-wood, anchor,
+insert, nut, locknut, washer, springwasher, text. Imperial lengths take
+fractions, mixed numbers, and decimals ("1/2", "1-1/4", "0.75"); metric
+lengths take whole or decimal mm. Unknown types and malformed items are
+skipped with a console warning, and every parsed label is echoed for
+review before printing.
+
+### Changes
+
+- Customizer field renamed `multi_label_prompt` -> `multi_label_spec`
+  (BREAKING for customizer presets saved with the old field name; default
+  value reproduces the old hardcoded 11-label example exactly).
+- New shared-core code, byte-identical in both files: string helpers
+  (`_substr`, `_lc`, `_split`, `_trim`, `_num`, `_idx` - built on
+  chr/ord/search; OpenSCAD has no regex), the type keyword table, and the
+  grammar layer (`_parse_item`, `_parse_group`, `parse_multi_label_spec`).
+- New unit layers: imperial `_norm_thread` / `_frac_in` / `_inches` /
+  `_parse_len_mm` / `_display_text_for` (inch marks); metric equivalents
+  (normalizes "m5" -> "M5").
+- `label_content()` "Custom text" now renders a non-empty `display_text`
+  in preference to `custom_text_only`, enabling `text:` batch items;
+  single-label mode passes "" there, so its behavior is unchanged.
+- `generate_multi_labels()` iterates `[0 : 1 : len-1]` so an empty parse
+  renders nothing instead of hitting a degenerate range, and echoes the
+  parsed label table.
+- SPECIFICATION.md: new Section 7 (grammar, error handling,
+  implementation notes); sections renumbered 7->8, 8->9, 9->10;
+  unit-layer and custom-text notes updated.
+
+### Verification
+
+- Default `multi_label_spec` in each file parses to exactly the same 11
+  labels the v105 stub hardcoded (verified via echo table and STL render).
+- Edge cases exercised: mixed-number inches (1-1/4 -> 31.75mm), decimals,
+  lowercase threads, full type names ("Robertson Pan Head"), unknown type
+  groups and malformed items (skipped with warnings), text labels.
+- Single-label default renders for both files verified geometry-identical
+  to v105 (facet-set comparison; STL byte order is nondeterministic).
+
 ## v105 - Dome side-view orientation fix
 
 Fixes the reversed button head reported during metric testing. Both files

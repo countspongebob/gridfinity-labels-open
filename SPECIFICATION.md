@@ -1,5 +1,5 @@
 # Parts Bin Label Generator - Master Specification
-## Version 105
+## Version 106
 
 This is the single source of truth for the Parts Bin Label Generator.
 Two code files are generated from this specification:
@@ -32,7 +32,7 @@ been tried and failed. Read this entire specification before making changes.
 - Focus on adding NEW capabilities, not "fixing" existing working features
 - Use whole integer version numbers only (v105, never v104.1)
 - Both files always carry the SAME version number (synchronized versioning)
-- Document every version in the changelog (Section 8) with rationale
+- Document every version in the changelog (Section 10) with rationale
 
 **Common pitfalls to avoid:**
 - Do not change icon module function names
@@ -40,7 +40,9 @@ been tried and failed. Read this entire specification before making changes.
   system and the gap-fix rules (Section 5.3)
 - Do not simplify the dual custom text field system
   (`custom_display_text` overrides auto-generation; `custom_text_only` is
-  used exclusively when hardware_type is "Custom text")
+  the fallback when hardware_type is "Custom text" - since v106 a
+  non-empty `display_text` takes precedence there, which batch text
+  labels depend on)
 
 ---
 
@@ -54,7 +56,8 @@ The engine is unit-agnostic: all icons, stems, and layout calculations run on
 thread_spec dropdown       -->  create_single_label()
 length input + conversion  -->  label_base(), label_content()
 display text generation    -->  render_hardware_icon() + 19 icon modules
-multi-label example table  -->  bolt_stem(), render_text()
+multi-label item parsing   -->  bolt_stem(), render_text()
+                                multi-label grammar + string helpers
 ```
 
 Generation rule: the shared core (Sections 3-5) must be byte-identical
@@ -159,7 +162,10 @@ is less than the stem half-width (1.25mm), or a visible notch appears.
   covering 1/8" through 2" in 1/16" steps (plus 1-1/4, 1-1/2, 1-3/4, 2),
   falling back to decimal for custom lengths
 - Helper: `imperial_to_mm(inches) = inches * 25.4`
-- Multi-label parser example table uses imperial specs
+- Multi-label unit layer: `_norm_thread()` accepts "1/4-20" / "#8-32"
+  forms as typed; `_parse_len_mm()` parses fractional, mixed-number, and
+  decimal inches ("1/2", "1-1/4", "0.75") x 25.4; `_display_text_for()`
+  appends inch marks
 
 ### 6.2 Metric file
 - Header: "Parts Bin Label Generator - METRIC" / "ISO Metric Machine Screw Support"
@@ -169,7 +175,9 @@ is less than the stem half-width (1.25mm), or a visible notch appears.
   (no conversion)
 - Display text: `generate_metric_display_text(thread, length) =
   str(thread, " x ", length)` producing standard callouts like "M5 x 16"
-- Multi-label parser example table uses metric specs
+- Multi-label unit layer: `_norm_thread()` requires M+number and
+  normalizes "m5" -> "M5"; `_parse_len_mm()` parses whole/decimal mm;
+  `_display_text_for()` yields "M5 x 8"
 - Common stocked lengths for reference: 4, 5, 6, 8, 10, 12, 16, 20, 25,
   30, 35, 40, 45, 50 mm
 
@@ -180,7 +188,68 @@ In `label_content()`, the fallback text expression differs:
 
 Nut/washer types display thread spec only (e.g. "1/4-20" / "M5") in both.
 
-## 7. Versioning Rules
+## 7. Multi-Label Batch Mode (real parser since v106)
+
+Toggled by `enable_multi_label`. The `multi_label_spec` string is parsed
+by `parse_multi_label_spec()` into a list of
+`[type, thread, display_text, length_mm]` entries rendered on a 3-column
+grid (h_spacing = label_length + 4, v_spacing = 15).
+
+History: v99-v105 shipped a STUB. `parse_multi_label_prompt()` ignored its
+"natural language" input entirely and returned a hardcoded example table -
+OpenSCAD cannot parse natural language; the field was decorative. v106
+replaced it with a structured grammar and renamed the customizer field
+`multi_label_prompt` -> `multi_label_spec` (breaking: customizer presets
+saved with the old field name lose that value).
+
+### 7.1 Grammar
+
+```
+spec  := group { ";" group }
+group := typekey ":" item { "," item }
+```
+
+Type keys (case-insensitive; full dropdown names from Section 3 also
+accepted): phillips, socket, hex, button, torx, robertson (or rpan),
+rflat, carriage, phillips-csk, torx-csk, socket-csk, phillips-wood,
+torx-wood, anchor, insert, nut, locknut, washer, springwasher, text
+
+Items:
+- Bolt/screw types: `<thread>x<length>` (spaces allowed around "x").
+  A bare `<thread>` is also accepted (icon with zero stem; label text is
+  the thread alone) - useful for `insert: M5`.
+- Nut/washer types: `<thread>` only.
+- `text:` items are literal label text and cannot contain "," or ";".
+
+Lengths - imperial: inches as "1/2", "3/4", "1", "1-1/4", "0.75";
+metric: mm as "8" or "12.5". Threads - imperial as typed ("1/4-20",
+"#8-32"); metric M+number, "m5" normalized to "M5".
+
+Examples:
+- Imperial: `socket: 1/4-20x1/2, 1/4-20x3/4; nut: 1/4-20, #8-32; text: MISC`
+- Metric: `button: M5x8, M4x12.5; washer: M5, M3; insert: M5`
+
+### 7.2 Error handling
+
+Unknown type keys and malformed items are SKIPPED with an `echo()`
+warning; every parsed label is echoed as `MULTI-LABEL: [type] text` so the
+set can be reviewed in the console before printing.
+
+### 7.3 Implementation notes
+
+- OpenSCAD has no regex or split; helpers `_substr`/`_lc`/`_split`/
+  `_trim`/`_num`/`_idx` are built on `chr()`/`ord()`/`search()`. These,
+  the type keyword table, and the grammar layer (`_parse_item`,
+  `_parse_group`, `parse_multi_label_spec`) are byte-identical in both
+  files.
+- The unit layer supplies `_norm_thread()`, `_parse_len_mm()`, and
+  `_display_text_for()` (Section 6).
+- Batch "Custom text" items flow through `display_text`:
+  `label_content()` for "Custom text" renders `display_text` when
+  non-empty, else `custom_text_only` (changed in v106; single-label
+  behavior is unchanged and was verified geometry-identical to v105).
+
+## 8. Versioning Rules
 
 - Whole integers only; both files always share the same version number
 - A change to the shared core (Sections 3-5) bumps both files and must be
@@ -191,7 +260,7 @@ Nut/washer types display thread spec only (e.g. "1/4-20" / "M5") in both.
   release.sh) do NOT bump the code version
 - Every version gets a changelog entry below and a changes-summary document
 
-## 8. Repository & Release Workflow
+## 9. Repository & Release Workflow
 
 Source of truth: https://github.com/countspongebob/gridfinity-labels-open
 
@@ -219,7 +288,20 @@ Release procedure per version NNN:
    RELEASE_NOTES.md, commits, tags vNNN, and pushes
 3. User clicks "Sync now" on the project's GitHub source
 
-## 9. Changelog
+## 10. Changelog
+
+- **v106**: Multi-label mode made real (both files). v99-v105's "natural
+  language prompt" was a stub: `parse_multi_label_prompt()` ignored its
+  input and returned a hardcoded example table. Replaced with a
+  structured grammar (Section 7) parsed by `parse_multi_label_spec()`;
+  customizer field renamed `multi_label_prompt` -> `multi_label_spec`
+  (breaking for saved presets). Shared-core additions: string helpers,
+  type keyword table, grammar layer; unit layers add thread/length
+  parsing (imperial fractions and mixed numbers supported).
+  `label_content()` "Custom text" now prefers a non-empty `display_text`
+  (enables batch text labels); `[0:1:len-1]` range guard added in
+  `generate_multi_labels()`. Single-label default output verified
+  geometry-identical to v105 for both files.
 
 - **v105**: Dome side-view orientation fix (both files). v104 shipped all
   four dome side views (phillips, button, carriage, robertson pan) mirrored:
