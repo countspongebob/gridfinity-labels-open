@@ -101,7 +101,7 @@ done
 # --- copy into repo (ensure trailing newline on .scad files) ---
 copy_with_newline() {
   cp "$1" "$2"
-  [[ -n "$(tail -c1 "$2")" ]] && echo >> "$2"
+  [[ -n "$(tail -c1 "$2")" ]] && echo >> "$2" || true
 }
 copy_with_newline "$IMP_SRC" imperial.scad
 copy_with_newline "$MET_SRC" metric.scad
