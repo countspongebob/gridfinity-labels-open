@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////
 //        Parts Bin Label Generator - IMPERIAL        //
 //         Fractional & Machine Screw Support         //
-//                    Version 104                     //
+//                    Version 105                     //
 ////////////////////////////////////////////////////////
 
 /* [Single Label Mode] */
@@ -315,14 +315,14 @@ module phillips_bolt_icon(length_mm, y_pos) {
         }
     }
     
-    translate([head_x + 3.5, y_pos, z_pos]) {
+    translate([head_x + 6, y_pos, z_pos]) {
         intersection() {
             cylinder(h = text_height, d = 5);
-            translate([0, -2.5, 0]) cube([5, 5, text_height]);
+            translate([-5, -2.5, 0]) cube([5, 5, text_height]);
         }
     }
     
-    bolt_stem(length_mm, head_x + 5, y_pos); // v103: overlaps dome taper, eliminates head/stem gap
+    bolt_stem(length_mm, head_x + 6, y_pos); // v105: stem butts the dome's flat bearing face
 }
 
 module phillips_countersunk_icon(length_mm, y_pos) {
@@ -394,16 +394,16 @@ module robertson_pan_icon(length_mm, y_pos) {
     }
     
     // Side view - dome profile (same as Phillips)
-    translate([head_x + 3.5, y_pos, z_pos]) {
+    translate([head_x + 6, y_pos, z_pos]) {
         intersection() {
             cylinder(h = text_height, d = 5);
-            translate([0, -2.5, 0]) cube([5, 5, text_height]);
+            translate([-5, -2.5, 0]) cube([5, 5, text_height]);
         }
     }
     
-    // Stem starts at head_x + 5 (overlaps dome taper to eliminate
-    // the visual gap where the dome narrows below stem width)
-    bolt_stem(length_mm, head_x + 5, y_pos);
+    // Stem starts at head_x + 6, butting the dome's flat bearing face
+    // (flat face half-height 2.5mm > stem half-width 1.25mm: no notch)
+    bolt_stem(length_mm, head_x + 6, y_pos);
 }
 
 module robertson_flat_icon(length_mm, y_pos) {
@@ -442,14 +442,14 @@ module carriage_bolt_icon(length_mm, y_pos) {
     }
     
     // Side view - dome profile (same as Phillips)
-    translate([head_x + 3.5, y_pos, z_pos]) {
+    translate([head_x + 6, y_pos, z_pos]) {
         intersection() {
             cylinder(h = text_height, d = 5);
-            translate([0, -2.5, 0]) cube([5, 5, text_height]);
+            translate([-5, -2.5, 0]) cube([5, 5, text_height]);
         }
     }
     
-    bolt_stem(length_mm, head_x + 5, y_pos); // v103: overlaps dome taper, eliminates head/stem gap
+    bolt_stem(length_mm, head_x + 6, y_pos); // v105: stem butts the dome's flat bearing face
 }
 
 ////////////////////////////////////////////////////////
@@ -528,14 +528,14 @@ module button_bolt_icon(length_mm, y_pos) {
         }
     }
     
-    translate([head_x + 3.5, y_pos, z_pos]) {
+    translate([head_x + 6, y_pos, z_pos]) {
         intersection() {
             scale([1, 1, 0.6]) cylinder(h = text_height * 1.67, d = 5);
-            translate([0, -2.5, 0]) cube([5, 5, text_height]);
+            translate([-5, -2.5, 0]) cube([5, 5, text_height]);
         }
     }
     
-    bolt_stem(length_mm, head_x + 5, y_pos); // v103: overlaps dome taper, eliminates head/stem gap
+    bolt_stem(length_mm, head_x + 6, y_pos); // v105: stem butts the dome's flat bearing face
 }
 
 ////////////////////////////////////////////////////////

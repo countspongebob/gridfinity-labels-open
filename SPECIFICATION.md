@@ -1,5 +1,5 @@
 # Parts Bin Label Generator - Master Specification
-## Version 104
+## Version 105
 
 This is the single source of truth for the Parts Bin Label Generator.
 Two code files are generated from this specification:
@@ -17,7 +17,10 @@ been tried and failed. Read this entire specification before making changes.
 **Before making any changes:**
 - Assume existing code is working correctly unless specifically told otherwise
 - Icon geometries are carefully calibrated - do not assume round icons are mistakes
-- Button head side view positioning is particularly sensitive
+- Dome side-view ORIENTATION is a known repeat-regression site: the curve
+  faces AWAY from the stem, the flat bearing face touches the stem
+  (Section 5.3). This has been reversed by mistake twice (pre-v99 baseline,
+  v104 regeneration; fixed in v105). Verify orientation on every regeneration.
 - Custom text handling for nuts/washers has specific behavior to preserve
 - `$fn` values are intentional (6 for hex shapes; default elsewhere)
 
@@ -98,7 +101,8 @@ Standard nut, Lock nut, Standard washer, Spring washer, Custom text, None
 - `head_x = -min(length_mm, max_bolt_length)/2 - 3` (bolts)
 - `head_x = -min(length_mm, max_bolt_length)/2 - 2` (countersunk & wood screws)
 - Top view (drive pattern) at head_x
-- Side view (head profile) at head_x + 3.5 (bolts) or head_x + 4 (countersunk)
+- Side view (head profile) starts at head_x + 3.5 (bolts) or head_x + 4
+  (countersunk); dome side views are centered at head_x + 6 (see 5.3)
 - All icon geometry sits at z = label_thickness, extruded text_height
 
 ### 5.2 Drive patterns (top view, cut from 5mm circle)
@@ -109,13 +113,23 @@ Standard nut, Lock nut, Standard washer, Spring washer, Custom text, None
 - Robertson: centered 2.2mm square
 - Carriage: NO cut - solid circle (no tool relief)
 
-### 5.3 Head/stem junction rules (gap fix, v102-v103)
+### 5.3 Head/stem junction rules (gap fix v102-v103; orientation v105)
 A stem must never start at an x-position where the head profile's half-height
 is less than the stem half-width (1.25mm), or a visible notch appears.
 
-- Dome side views (Phillips, Carriage, Button, Robertson pan): the half-disc
-  spans head_x+3.5 to head_x+6, tapering to a point. Stem MUST start at
-  head_x + 5 (dome half-height there = 2.0mm > 1.25mm).
+- Dome side views (Phillips, Carriage, Button, Robertson pan) - ORIENTATION
+  IS MANDATORY: the CURVED side faces outboard (toward the top view) and the
+  FLAT bearing face sits at head_x+6, where the stem starts. Implementation:
+  circle centered at head_x+6, keep the LEFT half via
+  `translate([-5, -2.5, 0]) cube([5, 5, text_height])`; half-disc spans
+  head_x+3.5 to head_x+6. Stem starts at head_x+6, butting the flat face
+  (flat-face half-height 2.5mm > 1.25mm, so no notch and no gap - the
+  v102-v103 taper-overlap workaround is obsolete for domes).
+  REGRESSION WARNING: the mirrored form (flat face outboard, taper toward
+  the stem, stem at head_x+5) is WRONG. It shipped in the pre-v99 baseline,
+  was fixed, and was reintroduced in the v104 regeneration; v105 fixed it
+  again. Never regenerate a dome side view with the cube on the +x side of
+  the circle's center.
 - Rectangular side views (Socket, Torx: 4mm cube; Hex: 3mm cube): stem
   overlaps the rectangle; head_x+6 (socket/torx) and head_x+5.5 (hex) are
   correct as-is.
@@ -207,6 +221,18 @@ Release procedure per version NNN:
 
 ## 9. Changelog
 
+- **v105**: Dome side-view orientation fix (both files). v104 shipped all
+  four dome side views (phillips, button, carriage, robertson pan) mirrored:
+  flat edge outboard at head_x+3.5, curve tapering into the stem - the
+  second occurrence of this exact mistake (first: pre-v99 baseline, fixed
+  Sept 2025 with the comment "Keep LEFT half for proper dome orientation").
+  Corrected to curve-outboard / flat-face-at-stem; dome stems moved
+  head_x+5 → head_x+6 to butt the flat face. Section 5.3 rewritten - it had
+  been authored FROM the reversed v104 code and codified the mistake.
+  Naming note: imperial's "Button head screw" / "Phillips head screw" era
+  ended before v104; both files now use "... head bolt". Older published
+  imperial builds (e.g. MakerWorld) list "Button head screw" - same icon,
+  earlier name.
 - **v104**: Metric version introduced (Option A: separate file). Synchronized
   versioning established. Master specification created as single source of
   truth. Imperial code functionally unchanged from v103. (Post-release docs

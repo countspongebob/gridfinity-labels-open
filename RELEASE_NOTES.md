@@ -5,6 +5,43 @@ Both `imperial.scad` and `metric.scad` always share the same version number.
 
 ---
 
+## v105 - Dome side-view orientation fix
+
+Fixes the reversed button head reported during metric testing. Both files
+changed identically (shared core); version headers bumped to 105.
+
+The v104 regeneration shipped all four dome side views - `phillips_bolt_icon`,
+`button_bolt_icon`, `carriage_bolt_icon`, `robertson_pan_icon` - mirrored:
+flat edge outboard at head_x+3.5, dome curve tapering into the stem. This is
+the second occurrence of this exact mistake; the first was in the pre-v99
+baseline and was fixed in September 2025 with the code comment "Keep LEFT
+half for proper dome orientation". The v104 regression also got codified into
+SPECIFICATION.md section 5.3, which was written from the reversed code.
+
+Changes:
+
+- All four dome side views (both files): half-disc now centered at head_x+6
+  keeping the left half - curve faces outboard, flat bearing face at
+  head_x+6. Same footprint as v104 (head_x+3.5 to head_x+6), flipped.
+- Dome stems moved head_x+5 to head_x+6: the stem butts the flat face
+  directly. The v102-v103 taper-overlap gap workaround is obsolete for domes
+  (flat-face half-height 2.5mm exceeds stem half-width 1.25mm; no notch, no
+  gap possible).
+- Rectangular, hex, countersunk, and specialty icons untouched.
+- SPECIFICATION.md 5.3 rewritten with the correct dome rule plus an explicit
+  regression warning; changelog entry added.
+
+Related finding, no code change: the "button head bolt missing from
+imperial" observation is a naming mismatch. Pre-v104 imperial builds
+(including older published MakerWorld versions) list the type as "Button
+head screw"; v104+ files list "Button head bolt" in both metric and
+imperial. Same icon, renamed. Consider republishing the imperial MakerWorld
+model from v105.
+
+Verified by OpenSCAD renders of v104 vs v105 button and phillips icons in
+both files: v105 shows the dome curving outboard with the flat face flush
+against the stem.
+
 ## v104 — Metric Version + Master Specification
 
 **Milestone release.**
