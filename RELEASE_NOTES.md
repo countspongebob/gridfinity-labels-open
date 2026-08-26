@@ -5,6 +5,54 @@ Both `imperial.scad` and `metric.scad` always share the same version number.
 
 ---
 
+## v113 - Vertical centering: content block no longer sits high
+
+Labels printed with the icon/text block visibly nearer the top edge
+than the bottom. Measured on a v112 Content-only STL (M5 x 16, Small
+label): icon ink reached 0.375mm from the top edge while the text
+baseline sat 1.5mm from the bottom - a 4:1 margin skew, ink midpoint
+0.54mm above label center. Root cause: `icon_y_pos = label_width/4`
+and the v108 baseline constant were each chosen independently; no spec
+rule required the block to be centered, so nothing caught the skew.
+
+### Fix (both files, shared core)
+
+New constant next to the internal calculations:
+
+    content_v_shift = -(1.5 - 0.375) / 2;  // -0.5625mm
+
+applied to BOTH placements, so the block moves as one unit:
+
+- `icon_y_pos = label_width/4 + content_v_shift` (+2.875 -> +2.3125)
+- text baseline `y = -label_width/2 + 1.5 + content_v_shift` (-4.25 -> -4.8125)
+
+The icon-text gap, the v108 baseline-pinning approach (font-metric
+independent), and all x-geometry are unchanged. Expression form keeps
+content_v_shift out of the customizer UI.
+
+### Verification
+
+Content-only STL bounding boxes (M5 x 16 Button head, Small label,
+Roboto Bold): v112 ink y -4.30..+5.38 (margins 0.375 / 1.45, midpoint
++0.54mm); v113 ink y -4.87..+4.81 (margins 0.94 / 0.88, midpoint
+-0.03mm). Orthographic before/after renders inspected. Both files
+compile clean; multi-label sheet spot-checked.
+
+A cautionary note now codified in spec Section 4.2: a first-cut
+relayout derived from an assumed ~2.9mm cap height nearly shipped a
+0.1mm icon-text gap - Roboto Bold digit ink at size 4 actually
+measures ~4.0mm. Vertical placement changes must be verified by STL
+measurement, never font-metric estimates.
+
+### Known trade-offs
+
+- Custom/override text with descenders (g j p q y) can reach
+  ~0.1-0.2mm past the bottom edge under a worst-case substituted
+  font; auto-generated hardware strings have no descenders.
+- "Custom text"-only labels (no icon) shift down with the shared
+  render_text(); centering text-only labels is a deliberate open item.
+
+
 ## v112 - Curve resolution fix: smooth round icons
 
 Neither file set `$fa`/`$fs`/`$fn` globally, so every circle without an

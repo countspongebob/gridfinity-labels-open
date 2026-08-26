@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////
 //         Parts Bin Label Generator - METRIC         //
 //          ISO Metric Machine Screw Support          //
-//                    Version 112                     //
+//                    Version 113                     //
 ////////////////////////////////////////////////////////
 
 /* [Single Label Mode] */
@@ -48,6 +48,15 @@ $fa = 6;
 $fs = 0.25;
 
 // Internal calculations
+// v113: vertical centering of the content block. The icon row
+// (icon_y_pos = label_width/4, head d=5) left only 0.375mm of ink
+// clearance at the top edge while the text baseline sat 1.5mm above
+// the bottom - the whole block read visibly high (4:1 margin skew).
+// Shifting icon row AND text down together by (1.5 - 0.375)/2 =
+// 0.5625mm equalizes the ink margins (~0.9mm each, STL-verified)
+// while leaving the icon-text gap and all x-geometry untouched.
+content_v_shift = -(1.5 - 0.375) / 2; // -0.5625; expression form keeps it out of the customizer UI
+
 label_length = (label_units == 1) ? 35.8 : (label_units == 2) ? 77.8 : 119.8;
 text_height = (text_mode == "Raised") ? raised_height : flush_height;
 font_string = str(font_family, ":style=", font_weight);
@@ -362,7 +371,7 @@ module render_text(text_content) {
         echo(str("TEXT-FIT: '", text_content, "' condensed to ",
                  round(x_condense * 100), "%",
                  size_factor < 1 ? str(", size scaled to ", round(size_factor * 100), "%") : ""));
-    translate([0, -label_width/2 + 1.5, label_thickness]) {
+    translate([0, -label_width/2 + 1.5 + content_v_shift, label_thickness]) {
         linear_extrude(height = text_height) {
             scale([x_condense, 1]) {
                 text(text_content, 
@@ -380,7 +389,7 @@ module render_text(text_content) {
 ////////////////////////////////////////////////////////
 
 module render_hardware_icon(type, length_mm) {
-    icon_y_pos = label_width/4;
+    icon_y_pos = label_width/4 + content_v_shift; // v113: see content_v_shift
     
     if (type == "Phillips head bolt") {
         phillips_bolt_icon(length_mm, icon_y_pos);

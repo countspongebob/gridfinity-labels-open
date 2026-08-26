@@ -1,5 +1,5 @@
 # Parts Bin Label Generator - Master Specification
-## Version 112
+## Version 113
 
 This is the single source of truth for the Parts Bin Label Generator.
 Two code files are generated from this specification:
@@ -22,6 +22,10 @@ been tried and failed. Read this entire specification before making changes.
   (Section 5.3). This has been reversed by mistake twice (pre-v99 baseline,
   v104 regeneration; fixed in v105). Verify orientation on every regeneration.
 - Custom text handling for nuts/washers has specific behavior to preserve
+- Vertical placement is a verified-by-measurement site (Section 4.2):
+  the content block must stay ink-centered between the label edges.
+  Never reposition text or icons from assumed font metrics - measure a
+  Content-only STL bounding box.
 - `$fn` values are intentional (6 for hex shapes). Since v112 both files
   set global `$fa = 6; $fs = 0.25;` so unmarked circles render smooth;
   explicit `$fn=6` arguments override the globals and MUST stay explicit.
@@ -89,6 +93,7 @@ between the two files except for the fallback text expression noted in 6.3.
 | Batch v_spacing | 15 mm | |
 | Batch grid | 3 columns | |
 | $fa / $fs | 6° / 0.25 mm | global curve resolution (v112); explicit $fn=6 hexes override |
+| content_v_shift | -0.5625 mm | v113 vertical centering: icon row AND text shift down together (Section 4.2) |
 
 ## 3. Hardware Types (21 + Custom text + None)
 
@@ -132,11 +137,11 @@ Renderer font substitution (MakerWorld's customizer does not resolve
 widths and vertical metrics, which shipped labels with text overrunning
 the label edges. render_text() is therefore self-fitting:
 
-- Vertical: valign="baseline", baseline pinned at label_width/2 - 1.5mm
-  above the bottom edge (y = -label_width/2 + 1.5). Placement is
-  independent of any font's ascent/descent metrics. Do NOT return to
-  valign="center" - its position is font-dependent and regressed on
-  MakerWorld.
+- Vertical: valign="baseline", baseline pinned a fixed distance above
+  the bottom edge (y = -label_width/2 + 1.5 + content_v_shift; see 4.2).
+  Placement is independent of any font's ascent/descent metrics. Do NOT
+  return to valign="center" - its position is font-dependent and
+  regressed on MakerWorld.
 - Horizontal: estimated width = text_size x sum of per-character
   advances from _adv() - a table calibrated ~10% ABOVE DejaVu Sans Bold
   (widest common fallback; OpenSCAD 2021.01 has no textmetrics()).
@@ -149,6 +154,57 @@ the label edges. render_text() is therefore self-fitting:
   'SPRING WASHER' (80% + size 63%) - all inside the end-clearance
   zone (measured via STL bounding box).
 
+### 4.2 Vertical layout - content block centering (v113)
+
+REQUIREMENT: the content block (icon row + text, taken together as ink)
+must be vertically centered on the label - top and bottom ink margins
+equal to within ~0.1mm. Measure by STL bounding box of a Content-only
+export, never by eye or by assumed font metrics (Roboto Bold digit ink
+at size 4 measures ~4.0mm tall, not the ~2.9mm a cap-height estimate
+suggests - an estimate-based relayout in v113 development closed the
+icon-text gap to 0.1mm before measurement caught it).
+
+Implementation (both files, shared core):
+
+- `content_v_shift = -(1.5 - 0.375) / 2;` (= -0.5625) - defined next to
+  the internal calculations. Kept in expression form so the customizer
+  does not surface it as a parameter.
+- Icon row center: `icon_y_pos = label_width/4 + content_v_shift`
+  (= +2.3125). Head circles are d=5, so icon ink tops out 0.9375mm
+  below the top edge.
+- Text baseline: `y = -label_width/2 + 1.5 + content_v_shift`
+  (= -4.8125), i.e. 0.9375mm above the bottom edge. The 4.1 baseline
+  rule (valign="baseline", font-metric independent) is unchanged; only
+  the constant moved.
+- The icon-text gap and all x-geometry are untouched by the shift -
+  icon row and text always move together.
+
+History: pre-v113, icon_y_pos = label_width/4 (+2.875) with the
+baseline at 1.5mm left ink margins of 0.375mm top vs ~1.45mm bottom -
+the whole block sat visibly high (the v108 verification only checked
+the bottom band, and no spec rule covered the icon row's y-position,
+so nothing caught it).
+
+REGRESSION WARNING: do not "simplify" icon_y_pos back to label_width/4,
+and do not re-balance by moving only the text or only the icon row -
+that changes the icon-text gap. Any relayout must re-verify equal
+margins via STL bounding box.
+
+Calibration reference: the equal-margin target is measured on
+descender-free metric strings (caps + digits, e.g. 'M5 x 16' ->
+0.94/0.88mm, STL-verified). Imperial fraction strings carry '/' ink
+~0.24mm below the baseline (Roboto Bold), measuring ~0.94/0.66mm -
+accepted; one shared constant cannot center both string classes.
+
+Known accepted trade-off: the baseline now sits 0.9375mm above the
+bottom edge, so custom/override text containing descenders (g j p q y)
+can reach ~0.1-0.2mm past the bottom edge under a worst-case
+substituted font. Auto-generated hardware strings contain no
+descenders. "Custom text"-only labels (no icon) also shift down
+0.5625mm with the shared render_text(); whether text-only labels
+should instead center vertically is an open item, deliberately not
+addressed in v113.
+
 ## 5. Icon Geometry Reference
 
 ### 5.1 Standard bolt icon pattern
@@ -157,6 +213,8 @@ the label edges. render_text() is therefore self-fitting:
 - Top view (drive pattern) at head_x
 - Side view (head profile) starts at head_x + 3.5 (bolts) or head_x + 4
   (countersunk); dome side views are centered at head_x + 6 (see 5.3)
+- Icon row y-center: `icon_y_pos = label_width/4 + content_v_shift`
+  (vertical centering rule, Section 4.2)
 - All icon geometry sits at z = label_thickness, extruded text_height
 - Curve resolution (v112): global `$fa = 6; $fs = 0.25;` in the customizer
   parameter block of both files governs every circle/cylinder without an
@@ -354,6 +412,19 @@ Release procedure per version NNN:
 3. User clicks "Sync now" on the project's GitHub source
 
 ## 10. Changelog
+
+- **v113**: Content block vertical centering (both files). The icon row
+  (icon_y_pos = label_width/4) plus the 1.5mm text baseline left ink
+  margins of 0.375mm top / ~1.45mm bottom - labels read visibly
+  top-heavy. Fix: new shared constant content_v_shift = -0.5625mm
+  (= -(1.5 - 0.375)/2) applied to BOTH the icon row and the text
+  baseline, equalizing ink margins at ~0.9mm (STL-verified: 0.94/0.88,
+  midpoint -0.03mm) with the icon-text gap and all x-geometry
+  unchanged. Spec gains Section 4.2 (centering requirement, measure by
+  STL bounding box) and fixes the garbled 4.1 baseline wording. Known
+  trade-off: descender glyphs in custom text can reach ~0.1-0.2mm past
+  the bottom edge under a worst-case substituted font; text-only label
+  centering left as an open item.
 
 - **v112**: Curve resolution fix (both files). Neither file set
   `$fa`/`$fs`/`$fn` globally, so every circle without an explicit `$fn`
