@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////
 //        Parts Bin Label Generator - IMPERIAL        //
 //         Fractional & Machine Screw Support         //
-//                    Version 111                     //
+//                    Version 112                     //
 ////////////////////////////////////////////////////////
 
 /* [Single Label Mode] */
@@ -37,6 +37,15 @@ corner_radius = 0.9;
 edge_chamfer = 0.2;
 raised_height = 0.2;
 flush_height = 0.01;
+
+// Global curve resolution (v112). Without these, OpenSCAD's defaults
+// ($fa=12, $fs=2) render every icon-scale circle at 5-8 segments:
+// d=5 heads/washers came out as octagons, d<=3 bores as pentagons.
+// Adaptive $fa/$fs scales fragment count to feature size (d=5 -> 60
+// segments, d=3 -> ~38, label corners ~23). Explicit $fn arguments
+// (the intentional $fn=6 hexes) always override these globals.
+$fa = 6;
+$fs = 0.25;
 
 // Internal calculations
 label_length = (label_units == 1) ? 35.8 : (label_units == 2) ? 77.8 : 119.8;

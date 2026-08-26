@@ -5,6 +5,55 @@ Both `imperial.scad` and `metric.scad` always share the same version number.
 
 ---
 
+## v112 - Curve resolution fix: smooth round icons
+
+Neither file set `$fa`/`$fs`/`$fn` globally, so every circle without an
+explicit `$fn` rendered at OpenSCAD's defaults (`$fa=12`, `$fs=2`). At
+icon scale that meant 8 segments for d=5 circles and the 5-segment
+floor for d<=3: washers drew as octagons with pentagon bores, dome side
+views as 4-facet arcs, nut and heat-insert bores as pentagons, and the
+r=0.9 label-base corners as visible facets. The spec line "default
+elsewhere" had codified the defect.
+
+### Fix (both files)
+
+Global curve resolution added to the customizer parameter block:
+
+    $fa = 6;
+    $fs = 0.25;
+
+Adaptive `$fa`/`$fs` scales fragment count to feature size: d=5 heads,
+domes, and washer rims get 60 segments; d=3 bores ~38; the r=0.9 label
+corners ~23. Explicit per-call `$fn=6` overrides the globals, so every
+intentional hex (Socket/Button recess, Hex head, Flange hex ring, nut
+exteriors) is unchanged. No dimensions, positions, or module interfaces
+changed; render time impact is negligible.
+
+Affected geometry now smooth: Standard/Spring washer rims and bores;
+dome side views (Phillips, Robertson pan, Carriage, Button); all round
+head top views (Phillips x3, Robertson x2, Carriage, Socket x2, Button,
+Torx x3, Flange hex outer flange); nut bores (Standard, Lock, Flange);
+Heat set insert body and bore; torx star spoke tips; label-base corner
+radii.
+
+### Verification
+
+- Exported mesh vertex counts match prediction: washer outer rim 60
+  segments, bore 38 (was 8 and 5).
+- Orthographic render comparison across icon types in both files:
+  round features smooth, hex features still hexagonal.
+- Both files compile clean in single-label and multi-label modes; the
+  `$fa`/`$fs` block is byte-identical between the files per the
+  shared-core rule.
+
+### Spec changes
+
+- "CRITICAL CONTEXT" `$fn` bullet rewritten: globals govern unmarked
+  circles; intentional hexes must keep explicit `$fn=6`; do not add
+  per-call `$fn` to round features or remove the globals.
+- Section 2 table: `$fa / $fs = 6 deg / 0.25 mm` row added.
+- Section 5.1: curve-resolution rule documented with the override list.
+
 ## v111 - Left side tab detachment fix
 
 The v109/v110 left tab printed as a loose sliver, not attached to the

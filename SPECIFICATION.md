@@ -1,5 +1,5 @@
 # Parts Bin Label Generator - Master Specification
-## Version 111
+## Version 112
 
 This is the single source of truth for the Parts Bin Label Generator.
 Two code files are generated from this specification:
@@ -22,7 +22,12 @@ been tried and failed. Read this entire specification before making changes.
   (Section 5.3). This has been reversed by mistake twice (pre-v99 baseline,
   v104 regeneration; fixed in v105). Verify orientation on every regeneration.
 - Custom text handling for nuts/washers has specific behavior to preserve
-- `$fn` values are intentional (6 for hex shapes; default elsewhere)
+- `$fn` values are intentional (6 for hex shapes). Since v112 both files
+  set global `$fa = 6; $fs = 0.25;` so unmarked circles render smooth;
+  explicit `$fn=6` arguments override the globals and MUST stay explicit.
+  Do not add per-call `$fn` to round features and do not remove the
+  globals - before v112 the OpenSCAD defaults ($fa=12, $fs=2) rendered
+  d=5 heads/washers as octagons and d<=3 bores as pentagons.
 
 **When modifying:**
 - Every change must be applied to BOTH the imperial and metric files
@@ -83,6 +88,7 @@ between the two files except for the fallback text expression noted in 6.3.
 | enable_side_tabs | true | side tabs for Gridfinity Extended label slots; customizer toggle |
 | Batch v_spacing | 15 mm | |
 | Batch grid | 3 columns | |
+| $fa / $fs | 6° / 0.25 mm | global curve resolution (v112); explicit $fn=6 hexes override |
 
 ## 3. Hardware Types (21 + Custom text + None)
 
@@ -152,6 +158,12 @@ the label edges. render_text() is therefore self-fitting:
 - Side view (head profile) starts at head_x + 3.5 (bolts) or head_x + 4
   (countersunk); dome side views are centered at head_x + 6 (see 5.3)
 - All icon geometry sits at z = label_thickness, extruded text_height
+- Curve resolution (v112): global `$fa = 6; $fs = 0.25;` in the customizer
+  parameter block of both files governs every circle/cylinder without an
+  explicit `$fn` - round heads, dome side views, washer annuli, nut and
+  insert bores, torx spoke tips, and the label-base corner cylinders.
+  Intentional hexes keep explicit `$fn=6` (Socket/Button recess, Hex head,
+  Flange hex ring, nut exteriors) and are unaffected by the globals
 
 ### 5.2 Drive patterns (top view, cut from 5mm circle)
 - Phillips: cross, two 0.8mm-wide slots, 4mm span
@@ -342,6 +354,20 @@ Release procedure per version NNN:
 3. User clicks "Sync now" on the project's GitHub source
 
 ## 10. Changelog
+
+- **v112**: Curve resolution fix (both files). Neither file set
+  `$fa`/`$fs`/`$fn` globally, so every circle without an explicit `$fn`
+  rendered at OpenSCAD's defaults ($fa=12, $fs=2): 8 segments at d=5,
+  the 5-segment floor at d<=3. Washers drew as octagons with pentagon
+  bores, dome side views as 4-facet arcs, nut/insert bores as pentagons,
+  and the r=0.9 label corners as visible facets. Fix: global
+  `$fa = 6; $fs = 0.25;` added to the parameter block of both files
+  (d=5 -> 60 segments, d=3 -> ~38, corners ~23). Explicit `$fn=6` hexes
+  (Socket/Button recess, Hex head, Flange hex ring, nut exteriors) are
+  untouched because per-call `$fn` overrides the globals. No dimensions,
+  positions, or module interfaces changed; render time impact negligible.
+  Verified by orthographic render comparison: washer/dome/bores round,
+  hexes still hexagonal.
 
 - **v111**: Left side tab detachment fix (both files). In v109/v110 the
   left tab's inner face, computed as -label_length/2 - tab_depth plus
