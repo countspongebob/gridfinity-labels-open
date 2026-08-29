@@ -5,6 +5,61 @@ Both `imperial.scad` and `metric.scad` always share the same version number.
 
 ---
 
+## v114 - Extrusion T-nut icons; heat insert side view redesigned
+
+Three new hardware types for T-slot aluminum extrusion nuts (both
+files, shared core), inserted after Flange nut in the dropdown:
+Sliding T-nut, Drop-in T-nut, Hammer T-nut. All three are
+nut/washer-class: icon plus thread text, no length.
+
+### Icon design
+
+All three styles share one side view, `tnut_side_profile()`: the
+inverted-T slot cross-section (3.6 x 1.6mm base bar + 1.5 x 2.8mm neck
+centered above it) - the family badge that reads "T-slot hardware".
+The style is carried by the top view alone, each a 5mm-class body
+centered at center_x - 2 with a d=2.5 threaded bore:
+
+- Sliding T-nut: sharp-cornered 5 x 4.4mm rectangle (slides in from
+  the extrusion end)
+- Drop-in T-nut: 5.4 x 4.4mm pill, hull of two d=4.4 circles at
+  x = +/-0.5 (rounded ends = inserts anywhere along the slot)
+- Hammer T-nut: 5 x 4.4mm rectangle with the NW and SE corners cut at
+  45 degrees (2.0mm-leg triangles, outset 0.1mm for robust booleans) -
+  the hammer-head shape that rotates 90 degrees to lock
+
+The bore is d=2.5 rather than the hex nuts' d=3 to keep >= 0.95mm
+walls on the 4.4mm-tall rectangular bodies.
+
+### Heat set insert side view redesigned
+
+The v113 side view - four detached 1 x 4mm knurl bars - read as
+generic hatching, not an insert. Replaced (both files) with the
+actual heat-set insert silhouette: vertical axis, insertion end down,
+two 3.2mm-wide knurl bands separated by a 2.2mm waist groove, the
+bottom band tapering to a flat pilot tip. The ring top view
+(4mm OD / 2.5mm bore) is unchanged, as are the module signature,
+dispatch, and the `insert` batch key - metric labels read M3/M5 etc.,
+imperial 1/4-20, #8-32 etc. as before.
+
+### Multi-label batch keys
+
+`tnut` (alias `tnut-slide`) -> Sliding T-nut, `tnut-drop` -> Drop-in
+T-nut, `tnut-hammer` -> Hammer T-nut. Example:
+`tnut: M5, M4; tnut-drop: M5; tnut-hammer: M6` (imperial:
+`tnut: 1/4-20, 5/16-18`).
+
+### Verification
+
+- Content-only orthographic renders confirm all three top views and
+  the shared inverted-T side profile, with open bores, in both files.
+- Batch parser echo-verified for all four keys in both files.
+- The new icon module block is byte-identical between metric.scad and
+  imperial.scad.
+- Regression: Standard nut, Socket head bolt, and Spring washer STLs
+  compared v113 vs v114 - triangle sets identical (STL byte order
+  varies with CGAL cache state; geometry does not).
+
 ## v113 - Vertical centering: content block no longer sits high
 
 Labels printed with the icon/text block visibly nearer the top edge

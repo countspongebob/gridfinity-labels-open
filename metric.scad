@@ -1,11 +1,11 @@
 ////////////////////////////////////////////////////////
 //         Parts Bin Label Generator - METRIC         //
 //          ISO Metric Machine Screw Support          //
-//                    Version 113                     //
+//                    Version 114                     //
 ////////////////////////////////////////////////////////
 
 /* [Single Label Mode] */
-hardware_type = "Button head bolt"; // [Phillips head bolt, Socket head bolt, Hex head bolt, Flange hex bolt, Button head bolt, Torx head bolt, Robertson pan head, Robertson flat head, Carriage bolt, Phillips head countersunk, Torx head countersunk, Socket head countersunk, Phillips wood screw, Torx wood screw, Wall anchor, Heat set insert, Standard nut, Lock nut, Flange nut, Standard washer, Spring washer, Custom text, None]
+hardware_type = "Button head bolt"; // [Phillips head bolt, Socket head bolt, Hex head bolt, Flange hex bolt, Button head bolt, Torx head bolt, Robertson pan head, Robertson flat head, Carriage bolt, Phillips head countersunk, Torx head countersunk, Socket head countersunk, Phillips wood screw, Torx wood screw, Wall anchor, Heat set insert, Standard nut, Lock nut, Flange nut, Sliding T-nut, Drop-in T-nut, Hammer T-nut, Standard washer, Spring washer, Custom text, None]
 thread_spec = "M5"; // [M2, M2.5, M3, M4, M5, M6, M8, M10, M12, M14]
 length_input_mm = 16; // Length in millimeters
 custom_display_text = ""; // Custom text override (leave blank for auto-generation)
@@ -72,10 +72,13 @@ function generate_metric_display_text(thread, length) =
     str(thread, " x ", length);
 
 function is_nut_or_washer_type(type) =
-    type == "Standard nut" || 
-    type == "Lock nut" || 
-    type == "Flange nut" || 
-    type == "Standard washer" || 
+    type == "Standard nut" ||
+    type == "Lock nut" ||
+    type == "Flange nut" ||
+    type == "Sliding T-nut" ||
+    type == "Drop-in T-nut" ||
+    type == "Hammer T-nut" ||
+    type == "Standard washer" ||
     type == "Spring washer";
 
 ////////////////////////////////////////////////////////
@@ -145,6 +148,10 @@ _TYPE_KEYS = [
     ["nut", "Standard nut"],
     ["locknut", "Lock nut"],
     ["flangenut", "Flange nut"],
+    ["tnut", "Sliding T-nut"],
+    ["tnut-slide", "Sliding T-nut"],
+    ["tnut-drop", "Drop-in T-nut"],
+    ["tnut-hammer", "Hammer T-nut"],
     ["washer", "Standard washer"],
     ["springwasher", "Spring washer"],
     ["text", "Custom text"]
@@ -429,6 +436,12 @@ module render_hardware_icon(type, length_mm) {
         lock_nut_icon(icon_y_pos);
     } else if (type == "Flange nut") {
         flange_nut_icon(icon_y_pos);
+    } else if (type == "Sliding T-nut") {
+        sliding_tnut_icon(icon_y_pos);
+    } else if (type == "Drop-in T-nut") {
+        dropin_tnut_icon(icon_y_pos);
+    } else if (type == "Hammer T-nut") {
+        hammer_tnut_icon(icon_y_pos);
     } else if (type == "Standard washer") {
         standard_washer_icon(icon_y_pos);
     } else if (type == "Spring washer") {
@@ -844,17 +857,31 @@ module wall_anchor_icon(length_mm, y_pos) {
 module heat_insert_icon(length_mm, y_pos) {
     z_pos = label_thickness;
     center_x = 0;
-    
+
+    // Top view: round insert body with threaded bore (unchanged v113)
     translate([center_x - 2, y_pos, z_pos]) {
         difference() {
             cylinder(h = text_height, d = 4);
             cylinder(h = text_height, d = 2.5);
         }
     }
-    
-    for (i = [0:3]) {
-        translate([center_x + 2 + i * 2, y_pos - 2, z_pos]) {
-            cube([1, 4, text_height]);
+
+    // Side view (redesigned v114): the actual heat-set insert
+    // silhouette, vertical axis, insertion end DOWN - two knurl
+    // bands (3.2 wide) separated by a waist groove (2.2 wide),
+    // ending in a tapered pilot tip. Replaces the v113 side view
+    // (4 detached knurl bars) which read as generic hatching.
+    translate([center_x + 3.6, y_pos, z_pos]) {
+        linear_extrude(height = text_height) {
+            polygon([
+                [-1.6,  2.2], [ 1.6,  2.2],   // top band, top edge
+                [ 1.6,  0.7], [ 1.1,  0.7],   // step into waist
+                [ 1.1, -0.3], [ 1.6, -0.3],   // waist -> bottom band
+                [ 1.6, -1.5], [ 1.05, -2.2],  // taper to pilot tip
+                [-1.05, -2.2], [-1.6, -1.5],  // pilot tip, flat bottom
+                [-1.6, -0.3], [-1.1, -0.3],   // bottom band -> waist
+                [-1.1,  0.7], [-1.6,  0.7]    // waist -> top band
+            ]);
         }
     }
 }
@@ -916,6 +943,84 @@ module flange_nut_icon(y_pos) {
     translate([center_x + 4.5, y_pos - 2.5, z_pos]) {
         cube([1, 5, text_height]);
     }
+}
+
+// T-nut side view shared by all three extrusion T-nut styles: the
+// inverted-T slot cross-section - wide base bar (sits in the slot
+// cavity) with a narrow neck (protrudes through the slot opening).
+// Style is differentiated by the top view only; the shared profile
+// is the family badge that reads "T-slot hardware".
+module tnut_side_profile(y_pos) {
+    z_pos = label_thickness;
+    center_x = 0;
+
+    // Base bar: x 2..5.6, y -2.2..-0.6 relative to (center_x, y_pos)
+    translate([center_x + 2, y_pos - 2.2, z_pos]) {
+        cube([3.6, 1.6, text_height]);
+    }
+    // Neck: centered over the base bar, y -0.6..2.2
+    translate([center_x + 3.05, y_pos - 0.6, z_pos]) {
+        cube([1.5, 2.8, text_height]);
+    }
+}
+
+module sliding_tnut_icon(y_pos) {
+    z_pos = label_thickness;
+    center_x = 0;
+
+    // Top view: sharp-cornered rectangular body (slides in from the
+    // extrusion end) with threaded bore
+    translate([center_x - 2, y_pos, z_pos]) {
+        difference() {
+            translate([-2.5, -2.2, 0]) cube([5, 4.4, text_height]);
+            cylinder(h = text_height, d = 2.5);
+        }
+    }
+
+    tnut_side_profile(y_pos);
+}
+
+module dropin_tnut_icon(y_pos) {
+    z_pos = label_thickness;
+    center_x = 0;
+
+    // Top view: pill-shaped body - the fully rounded ends are what
+    // let it drop into the slot anywhere along its length
+    translate([center_x - 2, y_pos, z_pos]) {
+        difference() {
+            linear_extrude(height = text_height) {
+                hull() {
+                    translate([-0.5, 0]) circle(d = 4.4);
+                    translate([0.5, 0]) circle(d = 4.4);
+                }
+            }
+            cylinder(h = text_height, d = 2.5);
+        }
+    }
+
+    tnut_side_profile(y_pos);
+}
+
+module hammer_tnut_icon(y_pos) {
+    z_pos = label_thickness;
+    center_x = 0;
+
+    // Top view: rectangle with two diagonally opposite corners cut
+    // at 45 deg - the hammer-head shape that rotates 90 deg to lock
+    // into the slot. Cut triangles are outset 0.1mm past the body
+    // edges for robust booleans.
+    translate([center_x - 2, y_pos, z_pos]) {
+        difference() {
+            translate([-2.5, -2.2, 0]) cube([5, 4.4, text_height]);
+            cylinder(h = text_height, d = 2.5);
+            linear_extrude(height = text_height) {
+                polygon([[-2.6, 0.3], [-2.6, 2.3], [-0.6, 2.3]]);   // NW corner
+                polygon([[2.6, -0.3], [2.6, -2.3], [0.6, -2.3]]);   // SE corner
+            }
+        }
+    }
+
+    tnut_side_profile(y_pos);
 }
 
 module standard_washer_icon(y_pos) {

@@ -1,5 +1,5 @@
 # Parts Bin Label Generator - Master Specification
-## Version 113
+## Version 114
 
 This is the single source of truth for the Parts Bin Label Generator.
 Two code files are generated from this specification:
@@ -95,18 +95,20 @@ between the two files except for the fallback text expression noted in 6.3.
 | $fa / $fs | 6° / 0.25 mm | global curve resolution (v112); explicit $fn=6 hexes override |
 | content_v_shift | -0.5625 mm | v113 vertical centering: icon row AND text shift down together (Section 4.2) |
 
-## 3. Hardware Types (21 + Custom text + None)
+## 3. Hardware Types (24 + Custom text + None)
 
 Dropdown order (identical in both files):
 Phillips head bolt, Socket head bolt, Hex head bolt, Flange hex bolt,
 Button head bolt, Torx head bolt, Robertson pan head, Robertson flat head,
 Carriage bolt, Phillips head countersunk, Torx head countersunk,
 Socket head countersunk, Phillips wood screw, Torx wood screw, Wall anchor,
-Heat set insert, Standard nut, Lock nut, Flange nut, Standard washer,
-Spring washer, Custom text, None
+Heat set insert, Standard nut, Lock nut, Flange nut, Sliding T-nut,
+Drop-in T-nut, Hammer T-nut, Standard washer, Spring washer, Custom text,
+None
 
 Nut/washer-class types (icon only + thread text, no length):
-Standard nut, Lock nut, Flange nut, Standard washer, Spring washer
+Standard nut, Lock nut, Flange nut, Sliding T-nut, Drop-in T-nut,
+Hammer T-nut, Standard washer, Spring washer
 
 ## 4. Export & Color (both files)
 
@@ -265,10 +267,29 @@ is less than the stem half-width (1.25mm), or a visible notch appears.
 ### 5.4 Specialty icons
 - Wood screws: countersunk head + stem shortened by 2 + pointed tip polygon
 - Wall anchor: 5 fins + optional stem when length_mm > 8
-- Heat set insert: ring (4mm OD / 2.5mm ID) + 4 knurl bars
+- Heat set insert: ring (4mm OD / 2.5mm ID) top view + insert
+  silhouette side view (redesigned v114): vertical axis centered at
+  x=3.6, insertion end DOWN - two 3.2mm-wide knurl bands separated by
+  a 2.2mm waist groove (band/waist steps at y=0.7 and y=-0.3), bottom
+  band tapering from y=-1.5 to a 2.1mm-wide flat pilot tip at y=-2.2.
+  Replaced the v113 side view (4 detached 1x4 knurl bars, generic
+  hatching that did not read as an insert)
 - Standard nut: hex ring + 3mm side rectangle
 - Lock nut: standard nut + stepped second rectangle (nylon collar)
 - Flange nut: hex ring top view + 2.5x4 body / 1x5 flange plate side view
+- T-nuts (extrusion, v114): all three styles share one side view - the
+  inverted-T slot cross-section (tnut_side_profile: 3.6x1.6 base bar at
+  x 2..5.6, y -2.2..-0.6 + 1.5x2.8 neck centered above it, y -0.6..2.2).
+  Style is carried by the TOP view only (5mm-class body centered at
+  center_x-2 with a d=2.5 bore - d=2.5, not the nuts' d=3, keeps
+  >=0.95mm walls on the 4.4mm-tall rectangular bodies):
+  - Sliding T-nut: sharp-cornered 5x4.4 rectangle (slides in from the
+    extrusion end)
+  - Drop-in T-nut: 5.4x4.4 pill (hull of two d=4.4 circles at x=+/-0.5;
+    rounded ends = drops in anywhere along the slot)
+  - Hammer T-nut: 5x4.4 rectangle with the NW and SE corners cut at 45deg
+    (2.0mm-leg triangles outset 0.1mm past the edges for robust booleans;
+    the hammer-head that rotates 90deg to lock)
 - Standard washer: round ring + 1mm side bar
 - Spring washer: split ring (0.8mm slot) + 1mm side bar
 
@@ -334,8 +355,8 @@ group := typekey ":" item { "," item }
 Type keys (case-insensitive; full dropdown names from Section 3 also
 accepted): phillips, socket, hex, flange (or flangebolt), button, torx,
 robertson (or rpan), rflat, carriage, phillips-csk, torx-csk, socket-csk,
-phillips-wood, torx-wood, anchor, insert, nut, locknut, flangenut, washer,
-springwasher, text
+phillips-wood, torx-wood, anchor, insert, nut, locknut, flangenut,
+tnut (or tnut-slide), tnut-drop, tnut-hammer, washer, springwasher, text
 
 Items:
 - Bolt/screw types: `<thread>x<length>` (spaces allowed around "x").
@@ -412,6 +433,20 @@ Release procedure per version NNN:
 3. User clicks "Sync now" on the project's GitHub source
 
 ## 10. Changelog
+
+- **v114**: Heat set insert side view redesigned (both files): the 4
+  detached knurl bars replaced with the insert silhouette - two knurl
+  bands, waist groove, tapered pilot tip, insertion end down (Section
+  5.4). Ring top view unchanged. Plus extrusion T-nut icons (both
+  files): "Sliding T-nut",
+  "Drop-in T-nut", "Hammer T-nut" added after Flange nut,
+  nut/washer-class (thread text only, no length). Shared side view =
+  inverted-T slot cross-section (tnut_side_profile); top views carry the
+  style: sharp rectangle / pill / diagonal-corner-cut hammer shape, each
+  with a d=2.5 bore (Section 5.4). Multi-label keys: tnut (or
+  tnut-slide), tnut-drop, tnut-hammer. Existing types verified
+  geometry-identical to v113 (STL triangle-set comparison; byte order
+  differs from CGAL cache state, geometry does not).
 
 - **v113**: Content block vertical centering (both files). The icon row
   (icon_y_pos = label_width/4) plus the 1.5mm text baseline left ink
