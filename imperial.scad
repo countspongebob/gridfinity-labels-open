@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////
 //        Parts Bin Label Generator - IMPERIAL        //
 //         Fractional & Machine Screw Support         //
-//                    Version 114                     //
+//                    Version 115                     //
 ////////////////////////////////////////////////////////
 
 /* [Single Label Mode] */
@@ -134,6 +134,10 @@ function _split(s, sep) =
         bounds = concat([-1], pos, [len(s)]))
     [for (j = [0 : 1 : len(bounds) - 2]) _substr(s, bounds[j] + 1, bounds[j + 1])];
 function _idx(s, c) = let(m = search(c, s)) len(m) == 0 ? -1 : m[0];
+// v115: index of the LAST occurrence (-1 if absent). Item parsing
+// splits at the last "x" so a metric thread may carry an ISO pitch
+// ("M12x1.75x50"); single-"x" items are unaffected.
+function _ridx(s, c) = let(m = search(c, s, 0)) (len(m) == 0 || len(m[0]) == 0) ? -1 : m[0][len(m[0]) - 1];
 function _fns(s, i) = i >= len(s) ? len(s) : (s[i] == " " || s[i] == "\t") ? _fns(s, i + 1) : i;
 function _lns(s, i) = i < 0 ? -1 : (s[i] == " " || s[i] == "\t") ? _lns(s, i - 1) : i;
 function _trim(s) = let(b = _fns(s, 0), e = _lns(s, len(s) - 1)) b > e ? "" : _substr(s, b, e + 1);
@@ -206,7 +210,7 @@ function _display_text_for(th, lstr) = str(th, " x ", lstr, "\"");
 // Item -> [type, thread, display_text, length_mm], or undef if malformed
 function _parse_item(tname, raw) =
     tname == "Custom text" ? [tname, "", raw, 0] :
-    let(x = _idx(_lc(raw), "x"))
+    let(x = _ridx(_lc(raw), "x"))
     (is_nut_or_washer_type(tname) || x < 0) ?
         let(th = _norm_thread(raw))
         (th == undef ?

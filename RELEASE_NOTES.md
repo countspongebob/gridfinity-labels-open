@@ -5,6 +5,60 @@ Both `imperial.scad` and `metric.scad` always share the same version number.
 
 ---
 
+## v115 - Metric thread pitch (ISO notation)
+
+Metric labels can now carry the thread pitch, so fine-pitch hardware
+is distinguishable from coarse: `M12x1.75 x 50` vs `M12x1.25 x 50`.
+Imperial already encodes pitch as TPI (`5/16-24` vs `5/16-18`) and is
+unchanged in output.
+
+### Metric unit layer
+
+- Single-label mode: new customizer field `thread_pitch` (mm, 0 = omit,
+  default 0). `thread_designation` = `thread_spec` or
+  `"<thread_spec>x<thread_pitch>"` and is passed as `thread` /
+  fed to `generate_metric_display_text()`. Default output is unchanged.
+- Batch mode: `_norm_thread()` accepts an optional ISO pitch suffix,
+  `M12x1.75` (case-insensitive, pitch must be a positive number),
+  factored through a new `_norm_size()` for the bare M+number check.
+- Pitch is display-only. No icon module reads the thread string, so
+  geometry cannot change with pitch.
+
+### Shared core (both files, identical)
+
+- New helper `_ridx(s, c)` - index of the last occurrence.
+- `_parse_item()` splits an item at the LAST "x" instead of the first,
+  so `M12x1.75x50` -> thread `M12x1.75`, length 50.
+  - Nut/washer items never split: `nut: M12x1.75` displays "M12x1.75".
+  - A single-"x" item on a bolt type remains thread x length
+    (`button: M12x1.75` = M12 bolt, 1.75 mm long). Bare-thread items
+    (`insert: M5`) still work.
+  - Imperial items never contain two "x"s; imperial parsing is
+    unchanged.
+
+### Grammar examples
+
+- `hex: M12x1.75x50, M12x1.75x60; nut: M10x1.5, M8x1.25`
+- Display: `M12x1.75 x 50`, `M10x1.5`
+
+### Verification
+
+- Parser echoes checked for: pitch bolt, pitch nut, pitch washer,
+  no-pitch bolt, lowercase `m10x1.5x30`, malformed `M6x` (skipped),
+  text item. Imperial batch `button: 5/16-24x1-1/4; socket:
+  5/16-24x1-1/2; nut: 5/16-24` parses as before.
+- Single default label: STL byte-identical to v114, both files.
+- Batch (no pitch, label_units=2): vertex multiset identical to v114,
+  both files (STL byte order varies run-to-run from CGAL cache state,
+  geometry does not).
+- Pitch labels rendered at medium width: `M12x1.75 x 50` fits via
+  text auto-fit.
+
+### Spec changes
+
+Sections 6.2, 7.1, 7.3 and changelog updated. Imperial file: shared
+core change plus header bump to 115.
+
 ## v114 - Extrusion T-nut icons; heat insert side view redesigned
 
 Three new hardware types for T-slot aluminum extrusion nuts (both

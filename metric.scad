@@ -1,12 +1,13 @@
 ////////////////////////////////////////////////////////
 //         Parts Bin Label Generator - METRIC         //
 //          ISO Metric Machine Screw Support          //
-//                    Version 114                     //
+//                    Version 115                     //
 ////////////////////////////////////////////////////////
 
 /* [Single Label Mode] */
 hardware_type = "Button head bolt"; // [Phillips head bolt, Socket head bolt, Hex head bolt, Flange hex bolt, Button head bolt, Torx head bolt, Robertson pan head, Robertson flat head, Carriage bolt, Phillips head countersunk, Torx head countersunk, Socket head countersunk, Phillips wood screw, Torx wood screw, Wall anchor, Heat set insert, Standard nut, Lock nut, Flange nut, Sliding T-nut, Drop-in T-nut, Hammer T-nut, Standard washer, Spring washer, Custom text, None]
 thread_spec = "M5"; // [M2, M2.5, M3, M4, M5, M6, M8, M10, M12, M14]
+thread_pitch = 0; // Thread pitch in mm, ISO notation (e.g. 1.25 -> "M8x1.25"); 0 = omit pitch
 length_input_mm = 16; // Length in millimeters
 custom_display_text = ""; // Custom text override (leave blank for auto-generation)
 custom_text_only = "Custom"; // Used only when hardware_type is "Custom text"
@@ -62,6 +63,10 @@ text_height = (text_mode == "Raised") ? raised_height : flush_height;
 font_string = str(font_family, ":style=", font_weight);
 max_bolt_length = 20 * label_units;
 length_mm = length_input_mm; // Direct metric input, no conversion needed
+// v115: single-label thread designation with optional ISO pitch
+// ("M8" or "M8x1.25"). Pitch is display-only; icon geometry never
+// reads the thread string.
+thread_designation = (thread_pitch > 0) ? str(thread_spec, "x", thread_pitch) : thread_spec;
 
 ////////////////////////////////////////////////////////
 //           METRIC SYSTEM FUNCTIONS                 //
@@ -91,6 +96,10 @@ function is_nut_or_washer_type(type) =
 //   bolts/screws:  <thread>x<length-mm>       e.g.  M5x8, M4x12.5
 //   nuts/washers:  <thread>                   e.g.  M5
 //   custom text:   literal label text         e.g.  text: Front, Back
+// Thread may carry an ISO pitch (v115): <thread>x<pitch>, e.g.
+//   M12x1.75x50 (bolt), M12x1.75 (nut/washer). The item splits at the
+//   LAST "x"; a single-"x" item on a bolt type is thread x length.
+//   Pitch is display-only ("M12x1.75 x 50"); icon geometry is unchanged.
 // Type keys (case-insensitive; full customizer type names also work):
 //   phillips, socket, hex, flange, button, torx, robertson, rpan,
 //   rflat, carriage, phillips-csk, torx-csk, socket-csk, phillips-wood,
@@ -113,6 +122,10 @@ function _split(s, sep) =
         bounds = concat([-1], pos, [len(s)]))
     [for (j = [0 : 1 : len(bounds) - 2]) _substr(s, bounds[j] + 1, bounds[j + 1])];
 function _idx(s, c) = let(m = search(c, s)) len(m) == 0 ? -1 : m[0];
+// v115: index of the LAST occurrence (-1 if absent). Item parsing
+// splits at the last "x" so a metric thread may carry an ISO pitch
+// ("M12x1.75x50"); single-"x" items are unaffected.
+function _ridx(s, c) = let(m = search(c, s, 0)) (len(m) == 0 || len(m[0]) == 0) ? -1 : m[0][len(m[0]) - 1];
 function _fns(s, i) = i >= len(s) ? len(s) : (s[i] == " " || s[i] == "\t") ? _fns(s, i + 1) : i;
 function _lns(s, i) = i < 0 ? -1 : (s[i] == " " || s[i] == "\t") ? _lns(s, i - 1) : i;
 function _trim(s) = let(b = _fns(s, 0), e = _lns(s, len(s) - 1)) b > e ? "" : _substr(s, b, e + 1);
@@ -161,9 +174,17 @@ function _type_name(k) =
     len(hits) > 0 ? hits[0] : undef;
 
 // --- metric unit layer: thread + length parsing ---
-// Thread: "M" + number (M2 ... M14); "m5" is normalized to "M5"
+// Thread: "M" + number (M2 ... M14); "m5" is normalized to "M5".
+// v115: optional ISO pitch suffix "x<pitch>" ("m12x1.75" -> "M12x1.75");
+// the pitch must be a positive number.
 function _norm_thread(raw) =
-    let(t = _trim(raw))
+    let(t = _trim(raw), x = _idx(_lc(t), "x"))
+    len(t) < 2 ? undef :
+    x < 0 ? _norm_size(t) :
+    let(sz = _norm_size(_trim(_substr(t, 0, x))),
+        p = _num(_trim(_substr(t, x + 1, len(t)))))
+    (sz == undef || p == undef || p <= 0) ? undef : str(sz, "x", p);
+function _norm_size(t) =
     len(t) < 2 ? undef :
     (t[0] == "m" || t[0] == "M") && _num(_substr(t, 1, len(t))) != undef ?
         str("M", _substr(t, 1, len(t))) : undef;
@@ -175,7 +196,7 @@ function _display_text_for(th, lstr) = str(th, " x ", lstr);
 // Item -> [type, thread, display_text, length_mm], or undef if malformed
 function _parse_item(tname, raw) =
     tname == "Custom text" ? [tname, "", raw, 0] :
-    let(x = _idx(_lc(raw), "x"))
+    let(x = _ridx(_lc(raw), "x"))
     (is_nut_or_washer_type(tname) || x < 0) ?
         let(th = _norm_thread(raw))
         (th == undef ?
@@ -218,11 +239,11 @@ if (enable_multi_label) {
     // Generate display text if not provided
     final_display_text = (custom_display_text != "") ? custom_display_text :
         (is_nut_or_washer_type(hardware_type) || hardware_type == "Custom text") ? "" :
-        generate_metric_display_text(thread_spec, length_input_mm);
+        generate_metric_display_text(thread_designation, length_input_mm);
     
     create_single_label(
         type = hardware_type,
-        thread = thread_spec,
+        thread = thread_designation,
         display_text = final_display_text,
         length_mm = length_mm
     );

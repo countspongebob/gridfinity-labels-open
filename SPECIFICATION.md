@@ -1,5 +1,5 @@
 # Parts Bin Label Generator - Master Specification
-## Version 114
+## Version 115
 
 This is the single source of truth for the Parts Bin Label Generator.
 Two code files are generated from this specification:
@@ -314,13 +314,23 @@ is less than the stem half-width (1.25mm), or a visible notch appears.
 - Header: "Parts Bin Label Generator - METRIC" / "ISO Metric Machine Screw Support"
 - thread_spec default "M5"; dropdown: M2, M2.5, M3, M4, M5, M6, M8, M10,
   M12, M14
+- Pitch input (v115): `thread_pitch = 0` (mm; 0 = omit). Derived
+  `thread_designation = thread_pitch > 0 ? str(thread_spec, "x",
+  thread_pitch) : thread_spec` ("M8" or "M8x1.25", ISO notation) is
+  what single-label mode passes as `thread` and feeds to
+  `generate_metric_display_text()`. Pitch is display-only: no icon
+  module reads the thread string, so `thread_pitch` cannot change
+  geometry.
 - Length input: `length_input_mm = 16` with `length_mm = length_input_mm`
   (no conversion)
 - Display text: `generate_metric_display_text(thread, length) =
   str(thread, " x ", length)` producing standard callouts like "M5 x 16"
+  or, with pitch, "M8x1.25 x 20"
 - Multi-label unit layer: `_norm_thread()` requires M+number and
-  normalizes "m5" -> "M5"; `_parse_len_mm()` parses whole/decimal mm;
-  `_display_text_for()` yields "M5 x 8"
+  normalizes "m5" -> "M5"; since v115 it also accepts an ISO pitch
+  suffix "x<pitch>" (positive number) via `_norm_size()`, normalizing
+  "m12x1.75" -> "M12x1.75"; `_parse_len_mm()` parses whole/decimal mm;
+  `_display_text_for()` yields "M5 x 8" / "M12x1.75 x 50"
 - Common stocked lengths for reference: 4, 5, 6, 8, 10, 12, 16, 20, 25,
   30, 35, 40, 45, 50 mm
 
@@ -367,11 +377,24 @@ Items:
 
 Lengths - imperial: inches as "1/2", "3/4", "1", "1-1/4", "0.75";
 metric: mm as "8" or "12.5". Threads - imperial as typed ("1/4-20",
-"#8-32"); metric M+number, "m5" normalized to "M5".
+"#8-32"; the TPI is the pitch); metric M+number, "m5" normalized to
+"M5", optionally with an ISO pitch suffix (v115): `M12x1.75`.
+
+Item splitting (v115): an item is split at the LAST "x" (`_ridx`), not
+the first, so a metric thread may carry a pitch: `M12x1.75x50` ->
+thread "M12x1.75", length 50. Consequences:
+- Nut/washer items never split; the whole item is the thread, so
+  `nut: M12x1.75` displays "M12x1.75".
+- A single-"x" item on a BOLT type is always thread x length:
+  `button: M12x1.75` is an M12 bolt 1.75mm long, not a pitch-only
+  bolt. Bare-thread bolt items (`insert: M5`) still work.
+- Imperial items never contain two "x"s, so imperial behavior is
+  unchanged.
 
 Examples:
 - Imperial: `socket: 1/4-20x1/2, 1/4-20x3/4; nut: 1/4-20, #8-32; text: MISC`
 - Metric: `button: M5x8, M4x12.5; washer: M5, M3; insert: M5`
+- Metric with pitch: `hex: M12x1.75x50, M10x1.5x30; nut: M10x1.5, M8x1.25`
 
 ### 7.2 Error handling
 
@@ -382,7 +405,7 @@ set can be reviewed in the console before printing.
 ### 7.3 Implementation notes
 
 - OpenSCAD has no regex or split; helpers `_substr`/`_lc`/`_split`/
-  `_trim`/`_num`/`_idx` are built on `chr()`/`ord()`/`search()`. These,
+  `_trim`/`_num`/`_idx`/`_ridx` are built on `chr()`/`ord()`/`search()`. These,
   the type keyword table, and the grammar layer (`_parse_item`,
   `_parse_group`, `parse_multi_label_spec`) are byte-identical in both
   files.
@@ -434,6 +457,18 @@ Release procedure per version NNN:
 
 ## 10. Changelog
 
+- **v115**: Metric thread pitch (ISO notation). Metric unit layer:
+  customizer `thread_pitch` (0 = omit) builds `thread_designation`
+  ("M8x1.25") for single-label mode; `_norm_thread()` accepts an
+  "x<pitch>" suffix in batch items ("m12x1.75" -> "M12x1.75"). Shared
+  core: `_ridx()` helper added and `_parse_item()` now splits at the
+  LAST "x" (both files, identical) so `M12x1.75x50` parses as thread
+  "M12x1.75" x 50; single-"x" items are unaffected, imperial behavior
+  unchanged (Section 7.1). Pitch is display-only - icons never read the
+  thread string. Imperial already carries pitch as TPI ("5/16-24"); no
+  imperial display change. Non-pitch output verified geometry-identical
+  to v114 in both files (single default label byte-identical STL; batch
+  labels vertex-multiset identical).
 - **v114**: Heat set insert side view redesigned (both files): the 4
   detached knurl bars replaced with the insert silhouette - two knurl
   bands, waist groove, tapered pilot tip, insertion end down (Section
